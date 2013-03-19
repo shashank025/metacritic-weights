@@ -51,15 +51,11 @@ movie: url_suffixes
 ratings.pkl: url_suffixes ratings.py movie
 	XPATHTOOLS=${XPT} $(PYTHON) ratings.py < url_suffixes > ratings.pkl
 
-# --- 7. non-negative least squares
-out.nnls: ratings.pkl metacritic.py
-	$(PYTHON) metacritic.py -s nnls -t 80 < ratings.pkl > out.nnls
+# --- 7. Sequential Least SQuares Programming
+out.slsqp: ratings.pkl metacritic.py
+	$(PYTHON) metacritic.py -s SLSQP -t 80 < ratings.pkl > out.slsqp
 
-# --- 8. unconstrained least squares
-out.lstsq: ratings.pkl metacritic.py
-	$(PYTHON) metacritic.py -s lstsq -t 80 < ratings.pkl > out.lstsq
-
-all: out.nnls out.lstsq
+all: out.slsqp
 
 clean_movie:
 	rm -rf movie

@@ -18,22 +18,23 @@ from collections import defaultdict
 from math import sqrt
 
 import numpy as np
+from numpy import linalg as LA
 import scipy.optimize as sci
 
 DEBUG = True
-TECHNIQUES = frozenset(['nnls', 'lstsq'])
+TECHNIQUES = frozenset(['SLSQP'])
 
 def debug(msg):
-    if debug:
+    if DEBUG:
         print >> sys.stderr, msg
         sys.stderr.flush()
 
 def warn(msg):
-    print >> sys.stderr, "***warning*** " + msg
+    print >> sys.stderr, "***warning*** " + str(msg)
     sys.stderr.flush()
 
 def error(msg):
-    print >> sys.stderr, "***error*** " + msg
+    print >> sys.stderr, "***error*** " + str(msg)
     sys.stderr.flush()
 
 def get_critics(many_ratings):
@@ -62,7 +63,7 @@ def extract_training_set(urls, training_pct):
 
 def rmse(errors):
     n = len(errors)
-    return sqrt(sum(e * e for e in errors))/n
+    return sqrt(sum(e * e for e in errors))/n if n else 0.
 
 def train_and_test(movie_ratings, training_pct, tech):
     """
@@ -96,25 +97,17 @@ def train_and_test(movie_ratings, training_pct, tech):
 def build_A(multiple_ratings, critic_index):
     num_critics = len(critic_index)
     num_movies = len(multiple_ratings)
-    A = np.zeros((num_movies + 1, num_critics))
+    A = np.zeros((num_movies, num_critics))
     total_ratings = 0
-    for i, (score, ratings) in enumerate(multiple_ratings):
-        for name, rating in ratings.items():
-            # normalization
-            j, val = critic_index[name], rating - score
-            A[i, j] = val
+    for i, (overall, ratings) in enumerate(multiple_ratings):
+        for name, rating_ij in ratings.items():
+            j = critic_index[name]
+            # normalized rating
+            A[i, j] =  rating_ij - overall
             total_ratings += 1
-    # critic weights should add up to 1
-    for j in range(num_critics):
-        A[num_movies, j] = 1
     return A, total_ratings
 
-def build_B(num_movies):
-    B = np.zeros(num_movies + 1)
-    B[num_movies] = 1
-    return B
-
-def infer_weights(multiple_ratings, all_critics, tech='lstsq'):
+def infer_weights(multiple_ratings, all_critics, tech):
     """Return a dictionary mapping critics to relative weights.
 
     all_critics: a set of critic names;
@@ -144,20 +137,37 @@ def infer_weights(multiple_ratings, all_critics, tech='lstsq'):
                                                                   total_ratings,
                                                                   num_movies,
                                                                   num_critics)
-    B = build_B(num_movies)
-    # min ||AX - B|| (optionally, with X >= 0)
     print A
-    if tech == 'nnls':
-        X, _ = sci.nnls(A, B)
-    else:
-        X = np.linalg.lstsq(A, B)[0]
-    return dict((name, X[i]) for name, i in critic_index.items())
+
+    # min ||AX|| (optionally with X >= 0 and sum X = 1)
+
+    # 1. objective function, that needs to be minimized
+    def obj_f(theta):
+        return LA.norm(A.dot(theta))
+
+    # 2. initial, random solution: XXX what if this is not feasible?
+    theta0 = np.array([random() for i in range(num_critics)])
+
+    # 3. bounds
+    bounds = [(0, 1) for i in range(num_critics)]
+
+    # 4. constraints
+    constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1}
+
+    res = sci.minimize(obj_f, theta0, method=tech, bounds=bounds, constraints=constraints)
+    result = dict((name, res.x[i]) for name, i in critic_index.items())
+    if not res.success:
+        msg = res.message
+        error( ">>>> Current result:" )
+        error( result )
+        raise Exception("unable to converge to a solution using %(tech)s: %(msg)s" % locals())
+    return result
 
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
         print "%2.2f %s (%d ratings)" % (weight * 100., critic_name, all_critics[critic_name])
 
-def testitout():
+def testitout(tech):
     weights = {
         'w1': 0.4,
         'w2': 0.15,
@@ -171,19 +181,18 @@ def testitout():
            {'w1': 59, 'w3': 79, 'w4': 91}]
 
     input = [(calc_overall_rating(weights, unr), unr) for unr in mcr]
-    predicted_weights = infer_weights(input, set(weights))
+    predicted_weights = infer_weights(input, set(weights), tech)
     print ">>>> actual weights:", weights
     print ">>>> predicted_weights:", predicted_weights
 
 if __name__ == '__main__':
 
-    args_parser = optparse.OptionParser(usage="%prog --tech (nnls|lstsq) { --test | --training-pct <int>} < ratings.pkl")
+    args_parser = optparse.OptionParser(usage="%prog --tech (COBYLA|SLSQP) { --test | --training-pct <int>} < ratings.pkl")
     args_parser.add_option('-s', '--tech',
                            dest="tech",
                            help="what solution technique to use? "
-                           "currently supported values are: "
-                           "'lstsq': standard least squared error; "
-                           "'nnls': like lstsq, but restrict solutions to non-negative space")
+                           "currently supported values are: COBYLA and SLSQP; "
+                           "see http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize")
     args_parser.add_option('-r', '--test',
                            action='store_true',
                            dest="test_only",
@@ -194,7 +203,7 @@ if __name__ == '__main__':
                            help="what percentage of data should be used to train?")
     options, args = args_parser.parse_args()
     if options.test_only:
-        testitout()
+        testitout('COBYLA')
         exit(0)
     if not options.train_with:
         args_parser.error("how much data to train with?")
