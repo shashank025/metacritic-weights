@@ -1,5 +1,11 @@
 """
 What are metacritic's relative weights for different critics/publications?
+
+XXX Things to try:
+
+1. normalize weights
+2. regularization
+3. logistic regression
 """
 
 import os
@@ -9,6 +15,7 @@ import pickle
 from operator import itemgetter
 from random import random
 from collections import defaultdict
+from math import sqrt
 
 import numpy as np
 import scipy.optimize as sci
@@ -43,13 +50,19 @@ def calc_overall_rating(weights, critic_ratings):
     total_weight = sum(weights[critic] for critic in critic_ratings)
     return unnormalized/total_weight
 
-def show_accuracy(url, actual, predicted, ratings):
-    error_pct = (predicted - actual) * 100./actual
+def err(actual, predicted):
+    return (predicted - actual) * 1.0 /actual
+
+def show_accuracy(url, actual, predicted, error_pct, ratings):
     print "[p: %3.2f, a: %3.2f, e: %3.2f] %s" % (predicted, actual, error_pct, url)
 
 def extract_training_set(urls, training_pct):
     frac = training_pct / 100.
     return set([url for url in urls if random() < frac])
+
+def rmse(errors):
+    n = len(errors)
+    return sqrt(sum(e * e for e in errors))/n
 
 def train_and_test(movie_ratings, training_pct, tech):
     """
@@ -63,6 +76,7 @@ def train_and_test(movie_ratings, training_pct, tech):
                                       tech)
     pretty_print_weights(all_critics, predicted_weights)
     test_set = set(movie_ratings).difference(training_set)
+    errors = []
     for u in test_set:
         if u not in movie_ratings:
             continue
@@ -70,7 +84,14 @@ def train_and_test(movie_ratings, training_pct, tech):
         if not (actual_overall and ratings):
             continue
         predicted_overall = calc_overall_rating(predicted_weights, ratings)
-        show_accuracy(u, actual_overall, predicted_overall, ratings)
+        error = err(actual_overall, predicted_overall)
+        show_accuracy(u, actual_overall, predicted_overall, error * 100, ratings)
+        errors.append(actual_overall - predicted_overall)
+    m = rmse(errors)
+    print
+    print "**********************"
+    print "RMSE: %.6f" % (m,)
+    print "**********************"
 
 def build_A(multiple_ratings, critic_index):
     num_critics = len(critic_index)
