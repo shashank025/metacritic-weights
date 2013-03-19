@@ -28,8 +28,7 @@ url_suffixes: urls_xml
 	if [ ! -e url_suffixes ]; then \
 		mv /tmp/url_suffixes url_suffixes; \
 	else \
-		diff url_suffixes /tmp/url_suffixes; \
-		if [ $$? -ne 0 ]; then \
+		if cmp url_suffixes /tmp/url_suffixes; then \
 			sort /tmp/url_suffixes url_suffixes | uniq > /tmp/url_suffixes.1; \
 			mv /tmp/url_suffixes.1 url_suffixes; \
 		fi \
