@@ -5,7 +5,7 @@ XPT_URL=http://www.semicomplete.com/files/xpathtool/${XPT_VERSION}.tar.gz
 XPT=${XPT_VERSION}/xpathtool/xpathtool.sh
 SCRAPE_FROM=http://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
 BASE_URL=http://www.metacritic.com
-PYTHON=/opt/local/bin/python2.7
+PYTHON=/usr/bin/python
 
 # --- 1. get necessary tools
 ${XPT}:
@@ -18,13 +18,9 @@ ${XPT}:
 urls_html:
 	wget ${SCRAPE_FROM} -O urls_html
 
-# --- 3. xml with metacritic movie url suffixes
-urls_xml: urls_html ${XPT}
-	${XPT} --oxml --ihtml '//a[starts-with(@href, "/movie")]' < urls_html > urls_xml
-
-# --- 4. get movie suffixes
-url_suffixes: urls_xml
-	${XPT} --ihtml '//a/@href' < urls_xml | sed -e 's/^\///g' | sort | uniq > /tmp/url_suffixes
+# --- 3. get movie suffixes
+url_suffixes: urls_html
+	cat urls_html | ${XPT} --ihtml '//@href' | grep '^/movie' | sed -e 's/^\///g' | sort | uniq > /tmp/url_suffixes
 	if [ ! -e url_suffixes ]; then \
 		mv /tmp/url_suffixes url_suffixes; \
 	else \
@@ -35,7 +31,7 @@ url_suffixes: urls_xml
 	fi
 	touch url_suffixes # otherwise, urls_xml will be newer than url_suffixes
 
-# --- 5. download and cache movie critic reviews html
+# --- 4. download and cache movie critic reviews html
 # url suffix -> actual critic ratings:
 #   movie/a-haunted-house -> http://www.metacritic.com/movie/a-haunted-house/critic-reviews
 movie: url_suffixes
