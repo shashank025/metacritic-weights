@@ -1,0 +1,2 @@
+ - migrate to using setup.py
+ - in ratings.py, raise error if XPATHTOOLS not defined in env
