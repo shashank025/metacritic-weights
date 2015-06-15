@@ -45,7 +45,7 @@ movie: url_suffixes
 # --- 6. pickle dump of Python dictionary that contains movie ratings
 # requires: Python module lxml
 ratings.pkl: url_suffixes ratings.py movie
-	XPATHTOOLS=${XPT} $(PYTHON) ratings.py < url_suffixes > ratings.pkl
+	XPATHTOOLS=${XPT} $(PYTHON) ratings.py < url_suffixes > /tmp/ratings.pkl && mv /tmp/ratings.pkl ratings.pkl
 
 # --- 7. Sequential Least SQuares Programming
 out.slsqp: ratings.pkl metacritic.py
