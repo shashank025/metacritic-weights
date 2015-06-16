@@ -2,4 +2,7 @@
  - in ratings.py, raise error if XPATHTOOLS not defined in env
  - store movies, critics and ratings in a database (sqlite?)
  - switch to argparser
- - option: combine all reviewers from a publication into one.
+ X option: combine all reviewers from a publication into one.
+ - do i need to worry about regularization?
+ - why is minimize() failing to converge?
+ - Supply Jacobians/Hessians to objective function and ineq constraints
