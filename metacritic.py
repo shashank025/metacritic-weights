@@ -22,7 +22,7 @@ from numpy import linalg as LA
 import scipy.optimize as sci
 
 DEBUG = True
-TECHNIQUES = frozenset(['SLSQP'])
+TECHNIQUES = frozenset(['SLSQP',])
 
 def debug(msg):
     if DEBUG:
@@ -36,6 +36,11 @@ def warn(msg):
 def error(msg):
     print >> sys.stderr, "***error*** " + str(msg)
     sys.stderr.flush()
+
+def calc_overall_rating(weights, critic_ratings):
+    unnormalized = sum(weights[critic] * score for critic, score in critic_ratings.items())
+    total_weight = sum(weights[critic] for critic in critic_ratings)
+    return unnormalized/total_weight
 
 def get_critics(many_ratings):
     """returns a dictionary: critic name -> number of movies rated"""
@@ -60,31 +65,46 @@ def rmse(errors):
     n = len(errors)
     return sqrt(sum(e * e for e in errors))/n if n else 0.
 
+def extract_computed_weights(result, all_critics):
+    """Return the computed weight for each critic.
+
+    result:
+        a scipy.optimize.OptimizeResult object.
+    all_critics:
+        ordered list of critics.
+    """
+    return {name : result.x[i] for i, name in enumerate(all_critics)}
+
 def train_and_test(ratings_data, training_pct, tech):
     """
     """
     # --- 1. list of all critics
     # convert to list for consistent enumeration
     all_critics = get_critics(ratings_data.values())
+    significant_critics = {critic:movies_rated for critic, movies_rated in all_critics.items() if movies_rated > 5}
     # --- 2. extract training set
     training_keys = extract_training_keys(ratings_data, training_pct)
     training_data = [ratings for url, ratings in ratings_data.items()
                      if url in training_keys]
-    predicted_weights = infer_weights(training_data,
-                                      list(all_critics),
-                                      tech)
-    pretty_print_weights(all_critics, predicted_weights)
-    test_set = set(movie_ratings).difference(training_set)
+    result = infer_weights(training_data,
+                           list(significant_critics),
+                           tech)
+    if not result.success:
+        error("optimization failed [%s]: %s" % (result.status, result.message))
+    predicted_weights = extract_computed_weights(result, significant_critics)
+    pretty_print_weights(significant_critics, predicted_weights)
+    test_keys = set(ratings_data).difference(training_keys)
     errors = []
-    for u in test_set:
-        if u not in movie_ratings:
-            continue
-        actual_overall, ratings = movie_ratings[u]
+    for u in test_keys:
+        actual_overall, ratings = ratings_data[u]
         if not (actual_overall and ratings):
             continue
-        predicted_overall = calc_overall_rating(predicted_weights, ratings)
-        error = err(actual_overall, predicted_overall)
-        show_accuracy(u, actual_overall, predicted_overall, error * 100, ratings)
+        # while computing this, throw away insignificant critics
+        predicted_overall = calc_overall_rating(predicted_weights,
+                                                {c:r for c, r in ratings.items()
+                                                 if c in predicted_weights})
+        e = err(actual_overall, predicted_overall)
+        show_accuracy(u, actual_overall, predicted_overall, e * 100, ratings)
         errors.append(actual_overall - predicted_overall)
     m = rmse(errors)
     print
@@ -124,8 +144,12 @@ def infer_weights(training_data, all_critics, tech):
     m = len(training_data)
     n = len(all_critics)
     # all theta values are positive
-    bounds = [(1e-9, 1)] * n         # min, max
-    theta0 = [1.0/n] * n             # initial values
+    bounds = [(0, 1)] * n         # min, max
+    theta0 = np.array([1.0/n] * n)   # initial values
+    debug("m: %(m)s, n: %(n)s" % locals())
+    debug("r_dash: %(r_dash)s" % locals())
+    debug("e_matrix: %(e_matrix)s" % locals())
+    debug("p_vector: %(p_vector)s" % locals())
     def y(theta):
         theta = np.transpose(np.asmatrix(theta))
         numerator = r_dash * theta   # each of these is an m-vector:
@@ -142,12 +166,7 @@ def infer_weights(training_data, all_critics, tech):
         return LA.norm(d(theta))
     constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1}
     # --- 5. actual call to optimize
-    result = sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints, method=tech)
-    if not result.success:
-        msg = result.message
-        raise Exception("unable to converge to a solution using %(tech)s: %(msg)s" % locals())
-    result = dict((name, result.x[i]) for i, name in enumerate(all_critics))
-    return result
+    return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints, method=tech)
 
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
@@ -167,7 +186,10 @@ def testitout(tech):
            {'w1': 59, 'w3': 79, 'w4': 91}]
 
     input = [(calc_overall_rating(weights, unr), unr) for unr in mcr]
-    predicted_weights = infer_weights(input, set(weights), tech)
+    result = infer_weights(input, set(weights), tech)
+    if not result.success:
+        error("optimization failed [%s]: %s" % (result.status, result.message))
+    predicted_weights = extract_computed_weights(infer_weights(input, set(weights), tech), weights)
     print ">>>> actual weights:", weights
     print ">>>> predicted_weights:", predicted_weights
 
