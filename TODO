@@ -1,2 +1,4 @@
  - migrate to using setup.py
  - in ratings.py, raise error if XPATHTOOLS not defined in env
+ - store movies, critics and ratings in a database (sqlite?)
+ - switch to argparser
