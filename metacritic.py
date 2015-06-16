@@ -23,7 +23,7 @@ import scipy.optimize as sci
 
 DEBUG = True
 TECHNIQUES = frozenset(['SLSQP',])
-
+SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
 def debug(msg):
     if DEBUG:
         print >> sys.stderr, msg
@@ -81,7 +81,9 @@ def train_and_test(ratings_data, training_pct, tech):
     # --- 1. list of all critics
     # convert to list for consistent enumeration
     all_critics = get_critics(ratings_data.values())
-    significant_critics = {critic:movies_rated for critic, movies_rated in all_critics.items() if movies_rated > 5}
+    significant_critics = {critic:movies_rated
+                           for critic, movies_rated in all_critics.items()
+                           if movies_rated > SIGNIFICANCE_RATING_COUNT}
     # --- 2. extract training set
     training_keys = extract_training_keys(ratings_data, training_pct)
     training_data = [ratings for url, ratings in ratings_data.items()
