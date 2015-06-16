@@ -45,7 +45,7 @@ def get_review_stats_xml(file_handle):
     args = ['--oxml', '--ihtml',  '//div[@class="review_stats"]']
     return xpathtools(args, file_handle)
 
-def extract_ratings(reviews_xml):
+def extract_ratings(reviews_xml, group_pub):
     ratings = {}
     root = ET.fromstring(reviews_xml)
     for div in root.xpath('.//div[@class="review_stats"]'):
@@ -62,30 +62,30 @@ def extract_ratings(reviews_xml):
             warn("no auth/pub for review; moving on ...")
             continue
         if auth and pub:
-            auth = '_'.join([auth, pub])
+            auth = pub if group_pub else '_'.join([auth, pub])
         if not auth and pub:
             auth = pub
         ratings[auth] = score
     return ratings
 
-def get_movie_stats(f):
+def get_movie_stats(f, group_pub):
     f.seek(0)
     overall_score = get_overall_score(f)
     debug(">>>> overall score: %s" % (overall_score,))
     f.seek(0)
     review_stats_xml = get_review_stats_xml(f)
-    all_ratings = extract_ratings(review_stats_xml)
+    all_ratings = extract_ratings(review_stats_xml, group_pub)
     return (overall_score, all_ratings)
 
-def get_ratings(suffix):
+def get_ratings(suffix, group_pub):
     if os.path.exists(suffix):
         with open(suffix, 'rb') as f:
-            return get_movie_stats(f)
+            return get_movie_stats(f, group_pub)
     return (None, None)
 
-def collect_ratings(url_suffixes):
+def collect_ratings(url_suffixes, group_pub):
     return dict([(u, (overall, r))
-                 for u, (overall, r) in [(u, get_ratings(u))
+                 for u, (overall, r) in [(u, get_ratings(u, group_pub))
                                          for u in url_suffixes]
                  if (overall and r)])
 
@@ -96,7 +96,11 @@ if __name__ == '__main__':
 
     Outputs a pickle dump of a Python dictionary that holds critic ratings for specified movies.
     """)
+    args_parser.add_option('-g', '--group-publication',
+                           action='store_true',
+                           dest="group_pub",
+                           help="group all reviewers from a publication into one super-reviewer")
     options, args = args_parser.parse_args()
     url_suffixes = [line.strip() for line in sys.stdin.readlines()]
-    movie_ratings = collect_ratings(url_suffixes)
+    movie_ratings = collect_ratings(url_suffixes, options.group_pub)
     print pickle.dumps(movie_ratings)
