@@ -49,14 +49,15 @@ def extract_ratings(reviews_xml):
     ratings = {}
     root = ET.fromstring(reviews_xml)
     for div in root.xpath('.//div[@class="review_stats"]'):
+        match = div.xpath('.//div[starts-with(@class, "metascore_w")]')
+        if not match:
+            warn("no score found for review; moving on ...")
+            continue
+        score = int(match[0].text)
         match = div.find('.//div[@class="source"]/a')
         pub = match.text.strip() if match is not None else None
         match = div.find('.//div[@class="author"]/a')
         auth = match.text.strip() if match is not None else None
-        match = div.xpath('.//div[starts-with(@class, "review_grade")]')
-        if not match:
-            warn("no score found for review; moving on ...")
-        score = int(match[0].text)
         if not auth and not pub:
             warn("no auth/pub for review; moving on ...")
             continue
