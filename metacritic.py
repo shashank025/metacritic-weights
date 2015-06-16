@@ -168,7 +168,7 @@ def infer_weights(training_data, all_critics, tech):
         return LA.norm(d(theta))
     constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1}
     # --- 5. actual call to optimize
-    return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints, method=tech)
+    return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints, method=tech, options={'disp':True})
 
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
