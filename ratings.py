@@ -34,7 +34,7 @@ def xpathtools(args, file_handle):
 def get_overall_score(file_handle):
     args = ['--otext',
             '--ihtml',
-            '//div[@class="metascore_wrap feature_metascore"]/div[contains(concat(" ", @class, " "), " data metascore ")]/span[@class="score_value"]']
+            "//span[@itemprop='ratingValue']"]
     score_text = xpathtools(args, file_handle)
     try:
         return int(score_text)
