@@ -24,6 +24,7 @@ import scipy.optimize as sci
 DEBUG = True
 TECHNIQUES = frozenset(['SLSQP',])
 SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
+OOB_PENALTY = 10                      # how much to penalize the objective when a theta value is out of bounds.
 def debug(msg):
     if DEBUG:
         print >> sys.stderr, msg
@@ -164,11 +165,14 @@ def infer_weights(training_data, all_critics, tech):
         return numerator / denom
     def d(theta):
         return p_vector - y(theta)
+    def tub(val, lo, hi):
+        return 1 if lo <= val <= hi else 0
     def obj_f(theta):
-        return LA.norm(d(theta))
+        return LA.norm(d(theta)) + sum(OOB_PENALTY * tub(x, 0, 1) for x in theta)
     constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1}
     # --- 5. actual call to optimize
-    return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints, method=tech, options={'disp':True})
+    return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints,
+                        method=tech, options={'disp':True})
 
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
