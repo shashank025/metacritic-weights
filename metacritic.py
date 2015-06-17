@@ -25,6 +25,7 @@ DEBUG = True
 TECHNIQUES = frozenset(['SLSQP',])
 SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
 OOB_PENALTY = 10                      # how much to penalize the objective when a theta value is out of bounds.
+
 def debug(msg):
     if DEBUG:
         print >> sys.stderr, msg
