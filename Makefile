@@ -49,7 +49,7 @@ ratings.pkl: url_suffixes ratings.py movie
 
 # --- 7. Sequential Least SQuares Programming
 out.slsqp: ratings.pkl metacritic.py
-	$(PYTHON) metacritic.py -s SLSQP -t 80 < ratings.pkl > out.slsqp
+	$(PYTHON) metacritic.py -s SLSQP -t 80 < ratings.pkl > out.slsqp 2> err.slsqp
 
 all: out.slsqp
 
