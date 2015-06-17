@@ -24,7 +24,8 @@ import scipy.optimize as sci
 DEBUG = True
 TECHNIQUES = frozenset(['SLSQP',])
 SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
-OOB_PENALTY = 10                      # how much to penalize the objective when a theta value is out of bounds.
+OOB_PENALTY = 10                      # how much to penalize the objective fn when a theta value is out of bounds.
+NIH_PENALTY = 10                      # how much to penalize the objective fn when theta values dont add up to 1.
 
 def debug(msg):
     if DEBUG:
@@ -169,7 +170,20 @@ def infer_weights(training_data, all_critics, tech):
     def tub(val, lo, hi):
         return 1 if lo <= val <= hi else 0
     def obj_f(theta):
-        return LA.norm(d(theta)) + sum(OOB_PENALTY * tub(x, 0, 1) for x in theta)
+        """This is the function whose value will be minimized.
+
+        In addition to the L-2 norm of the d() function,
+        we will also add the following penalty terms:
+        1) Out of Bound Penalty:
+            - penalize when a theta value is outside the range [0, 1].
+        2) Not in Hyperplane Penalty:
+            - penalize when theta values don't add up exactly to one.
+        """
+        standard_error = LA.norm(d(theta))
+        oob_penalty = sum(OOB_PENALTY * tub(x, 0, 1) for x in theta)
+        nih_penalty = NIH_PENALTY * ( (sum(theta) - 1) ** 2 )
+        return standard_error + oob_penalty + nih_penalty
+
     constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1}
     # --- 5. actual call to optimize
     return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints,
