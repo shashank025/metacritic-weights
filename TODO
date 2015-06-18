@@ -6,5 +6,9 @@
  - do i need to worry about regularization?
  - why is minimize() failing to converge?
  - Supply Jacobians/Hessians to objective function and ineq constraints
- - AUC (area under curve) to measure goodness of predictions
+ - how to measure the performance of the optimization model?
  - suppress html parser errors from xpathtool runs
+ X plot y(theta) to understand if it is convex?
+ - expose following configuration as options:
+    * both penalty terms
+    * critic significance threshold
