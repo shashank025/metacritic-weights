@@ -7,6 +7,7 @@ import numpy as np
 fig = plt.figure()
 ax = fig.gca(projection='3d')
 
+# do not start from 0 because div by zero.
 t1 = np.arange(0.1, 1, 0.1)
 t2 = np.arange(0.1, 1, 0.1)
 
@@ -24,9 +25,6 @@ Z = Z / (tt1 + tt2)
 surf = ax.plot_surface(tt1, tt2, Z, rstride=1, cstride=1, cmap=cm.coolwarm,
         linewidth=0, antialiased=False)
 ax.set_zlim(65, 80)
-
-ax.zaxis.set_major_locator(LinearLocator(10))
-ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
 
 fig.colorbar(surf, shrink=0.5, aspect=5)
 
