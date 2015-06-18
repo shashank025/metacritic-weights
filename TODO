@@ -6,3 +6,5 @@
  - do i need to worry about regularization?
  - why is minimize() failing to converge?
  - Supply Jacobians/Hessians to objective function and ineq constraints
+ - AUC (area under curve) to measure goodness of predictions
+ - suppress html parser errors from xpathtool runs

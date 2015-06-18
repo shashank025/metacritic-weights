@@ -22,7 +22,7 @@ from numpy import linalg as LA
 import scipy.optimize as sci
 
 DEBUG = True
-TECHNIQUES = frozenset(['SLSQP',])
+TECHNIQUES = frozenset(['SLSQP','COBYLA'])
 SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
 OOB_PENALTY = 100                     # how much to penalize the objective fn when a theta value is out of bounds.
 NIH_PENALTY = 100                     # how much to penalize the objective fn when theta values dont add up to 1.
@@ -166,7 +166,7 @@ def infer_weights(training_data, all_critics, tech):
     m = len(training_data)
     n = len(all_critics)
     # all theta values are positive
-    bounds = [(0, 1)] * n         # min, max
+    bounds = [(0, 1)] * n            # min, max
     theta0 = np.array([1.0/n] * n)   # initial values
     debug("m: %(m)s, n: %(n)s" % locals())
     debug("r_dash: %(r_dash)s" % locals())
@@ -201,14 +201,14 @@ def infer_weights(training_data, all_critics, tech):
         nih_penalty = NIH_PENALTY * ( (sum(theta) - 1) ** 2 )
         return standard_error + oob_penalty + nih_penalty
 
-    constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1}
+    constraints = {'type': 'eq', 'fun': lambda theta: sum(theta) - 1} if tech == 'SLSQP' else []
     # --- 5. actual call to optimize
     return sci.minimize(obj_f, theta0, bounds=bounds, constraints=constraints,
                         method=tech, options={'disp':True})
 
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
-        print "%2.2f %s (%d ratings)" % (weight * 100., critic_name, all_critics[critic_name])
+        print "%2.6f %s (%d ratings)" % (weight * 100., critic_name, all_critics[critic_name])
 
 def testitout(tech):
     weights = {
