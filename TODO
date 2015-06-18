@@ -2,13 +2,13 @@
  - in ratings.py, raise error if XPATHTOOLS not defined in env
  - store movies, critics and ratings in a database (sqlite?)
  - switch to argparser
- X option: combine all reviewers from a publication into one.
  - do i need to worry about regularization?
  - why is minimize() failing to converge?
  - Supply Jacobians/Hessians to objective function and ineq constraints
  - how to measure the performance of the optimization model?
  - suppress html parser errors from xpathtool runs
- X plot y(theta) to understand if it is convex?
  - expose following configuration as options:
     * both penalty terms
     * critic significance threshold
+ X option: combine all reviewers from a publication into one.
+ X plot y(theta) to understand if it is convex?
