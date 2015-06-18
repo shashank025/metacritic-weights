@@ -24,8 +24,8 @@ import scipy.optimize as sci
 DEBUG = True
 TECHNIQUES = frozenset(['SLSQP',])
 SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
-OOB_PENALTY = 10                      # how much to penalize the objective fn when a theta value is out of bounds.
-NIH_PENALTY = 10                      # how much to penalize the objective fn when theta values dont add up to 1.
+OOB_PENALTY = 100                     # how much to penalize the objective fn when a theta value is out of bounds.
+NIH_PENALTY = 100                     # how much to penalize the objective fn when theta values dont add up to 1.
 
 def debug(msg):
     if DEBUG:
@@ -78,24 +78,43 @@ def extract_computed_weights(result, all_critics):
     """
     return {name : result.x[i] for i, name in enumerate(all_critics)}
 
+def prune_ratings(movie_ratings, significant_critics):
+    return {c: r for c, r in movie_ratings.items()
+            if c in significant_critics}
+
 def train_and_test(ratings_data, training_pct, tech):
     """
+    ratings_data:
+        a dictionary of the form:
+            movie_url -> (metascore, movie_ratings)
+        where movie_ratings is itself a dictionary of the form:
+            critic_name -> critic_rating.
+    training_pct:
+        what fraction of input data do we want to use for training?
+    tech:
+        what optimization technology do we want to use?
     """
+
     # --- 1. list of all critics
     # convert to list for consistent enumeration
     all_critics = get_critics(ratings_data.values())
     significant_critics = {critic:movies_rated
                            for critic, movies_rated in all_critics.items()
                            if movies_rated > SIGNIFICANCE_RATING_COUNT}
-    # --- 2. extract training set
+    # --- 2. remove ratings by insignificant critics from the data
+    ratings_data = {url : (metascore, prune_ratings(ratings, significant_critics))
+                    for url, (metascore, ratings) in ratings_data.items()}
+    # --- 3. extract training set
     training_keys = extract_training_keys(ratings_data, training_pct)
     training_data = [ratings for url, ratings in ratings_data.items()
                      if url in training_keys]
+    # --- 4. actual constrained optimization
     result = infer_weights(training_data,
                            list(significant_critics),
                            tech)
     if not result.success:
         error("optimization failed [%s]: %s" % (result.status, result.message))
+    # --- 5. how well did it do?
     predicted_weights = extract_computed_weights(result, significant_critics)
     pretty_print_weights(significant_critics, predicted_weights)
     test_keys = set(ratings_data).difference(training_keys)
@@ -105,9 +124,7 @@ def train_and_test(ratings_data, training_pct, tech):
         if not (actual_overall and ratings):
             continue
         # while computing this, throw away insignificant critics
-        predicted_overall = calc_overall_rating(predicted_weights,
-                                                {c:r for c, r in ratings.items()
-                                                 if c in predicted_weights})
+        predicted_overall = calc_overall_rating(predicted_weights, ratings)
         e = err(actual_overall, predicted_overall)
         show_accuracy(u, actual_overall, predicted_overall, e * 100, ratings)
         errors.append(actual_overall - predicted_overall)
@@ -168,7 +185,7 @@ def infer_weights(training_data, all_critics, tech):
     def d(theta):
         return p_vector - y(theta)
     def tub(val, lo, hi):
-        return 1 if lo <= val <= hi else 0
+        return 0 if lo <= val <= hi else 1
     def obj_f(theta):
         """This is the function whose value will be minimized.
 
@@ -180,7 +197,7 @@ def infer_weights(training_data, all_critics, tech):
             - penalize when theta values don't add up exactly to one.
         """
         standard_error = LA.norm(d(theta))
-        oob_penalty = sum(OOB_PENALTY * tub(x, 0, 1) for x in theta)
+        oob_penalty = OOB_PENALTY * sum(tub(x, 0, 1) for x in theta)
         nih_penalty = NIH_PENALTY * ( (sum(theta) - 1) ** 2 )
         return standard_error + oob_penalty + nih_penalty
 
