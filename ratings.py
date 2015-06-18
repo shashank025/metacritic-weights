@@ -62,7 +62,7 @@ def extract_ratings(reviews_xml, group_pub):
             warn("no auth/pub for review; moving on ...")
             continue
         if auth and pub:
-            auth = pub if group_pub else '_'.join([auth, pub])
+            auth = pub if group_pub else '%s (%s)' % (auth, pub)
         if not auth and pub:
             auth = pub
         ratings[auth] = score
