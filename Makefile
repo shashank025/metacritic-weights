@@ -48,10 +48,13 @@ ratings.pkl: url_suffixes ratings.py movie
 	XPATHTOOLS=${XPT} $(PYTHON) ratings.py < url_suffixes > /tmp/ratings.pkl && mv /tmp/ratings.pkl ratings.pkl
 
 # --- 7. Sequential Least SQuares Programming
-out.slsqp: ratings.pkl metacritic.py
-	$(PYTHON) metacritic.py -s SLSQP -t 80 < ratings.pkl > out.slsqp 2> err.slsqp
+slsqp: ratings.pkl metacritic.py
+	$(PYTHON) metacritic.py -s SLSQP -t 80 < ratings.pkl > slsqp 2> err.slsqp
 
-all: out.slsqp
+cobyla: ratings.pkl metacritic.py
+	$(PYTHON) metacritic.py -s COBYLA -t 80 < ratings.pkl > cobyla 2> err.cobyla
+
+all: slsqp cobyla
 
 clean_movie:
 	rm -rf movie
