@@ -1,3 +1,4 @@
+ - Number of files in movie dir hasn't changed at all: bug with adding new movies?
  - migrate to using setup.py
  - in ratings.py, raise error if XPATHTOOLS not defined in env
  - store movies, critics and ratings in a database (sqlite?)
