@@ -23,13 +23,11 @@ Z = tt1 * r1 + tt2 * r2
 Z = Z / (tt1 + tt2)
 
 surf = ax.plot_surface(tt1, tt2, Z, rstride=1, cstride=1, cmap=cm.coolwarm,
-                       linewidth=0, antialiased=False)
+                       linewidth=0, antialiased=True)
 ax.set_zlim(65, 80)
 ax.set_xlabel('theta1')
 ax.set_ylabel('theta2')
 ax.set_zlabel('y(theta)')
-
-fig.colorbar(surf, shrink=0.5, aspect=5)
 
 plt.show()
 
