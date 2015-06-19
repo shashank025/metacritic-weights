@@ -98,6 +98,23 @@ def construct_opt_params(ratings_data, critics):
     debug("p_vector: %(p_vector)s" % locals())
     return r_dash, e_matrix, p_vector
 
+def scale_critic_weights(predicted_weights):
+    """Scale weights to be in interval [0, 1].
+
+    Returns a triple of the form:
+        (lo, hi, critic_weights)
+    where critic_weights is a dictionary of the form:
+        critic_name -> scaled_weight.
+    """
+    all_weights = predicted_weights.values()
+    hi = max(all_weights)
+    lo = min(all_weights)
+    assert hi > lo
+    m = 1.0 / (hi - lo)  # slope
+    c = lo * m           # intercept
+    return (lo, hi, {critic_name : (m * weight - c)
+                     for critic_name, weight in predicted_weights.items()})
+
 def train_and_test(ratings_data, training_pct, tech, significant_critics):
     """
     ratings_data:
@@ -125,7 +142,8 @@ def train_and_test(ratings_data, training_pct, tech, significant_critics):
 
     # --- 4. how well did it do?
     predicted_weights = extract_computed_weights(result, significant_critics)
-    pretty_print_weights(significant_critics, predicted_weights)
+    lo, hi, scaled_weights = scale_critic_weights(predicted_weights)
+    pretty_print_weights(significant_critics, scaled_weights)
     test_keys = set(ratings_data).difference(training_keys)
     errors = []
     for u in test_keys:
