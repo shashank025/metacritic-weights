@@ -23,7 +23,7 @@ import scipy.optimize as sci
 
 DEBUG = True
 TECHNIQUES = frozenset(['SLSQP','COBYLA'])
-SIGNIFICANCE_RATING_COUNT = 5         # critic must rate at least these many movies to be considered.
+RATING_COUNT_THRESHOLD = 5            # critic must rate at least these many movies to be considered.
 OOB_PENALTY = 100                     # how much to penalize the objective fn when a theta value is out of bounds.
 NIH_PENALTY = 100                     # how much to penalize the objective fn when theta values dont add up to 1.
 
@@ -82,7 +82,23 @@ def prune_ratings(movie_ratings, significant_critics):
     return {c: r for c, r in movie_ratings.items()
             if c in significant_critics}
 
-def train_and_test(ratings_data, training_pct, tech):
+def construct_opt_params(ratings_data, critics):
+    r_dash = []
+    for _, individual_ratings in ratings_data:
+        r_dash.append([individual_ratings.get(c, 0) for c in critics])
+    r_dash = np.matrix(r_dash)
+    # --- 3. calculate the r_dash and e matrices
+    e_matrix = []
+    for _, individual_ratings in ratings_data:
+        e_matrix.append([1 if c in individual_ratings else 0 for c in critics])
+    e_matrix = np.matrix(e_matrix)
+    p_vector = np.array([metascore for metascore, _ in ratings_data])
+    debug("r_dash: %(r_dash)s" % locals())
+    debug("e_matrix: %(e_matrix)s" % locals())
+    debug("p_vector: %(p_vector)s" % locals())
+    return r_dash, e_matrix, p_vector
+
+def train_and_test(ratings_data, training_pct, tech, significant_critics):
     """
     ratings_data:
         a dictionary of the form:
@@ -95,26 +111,19 @@ def train_and_test(ratings_data, training_pct, tech):
         what optimization technology do we want to use?
     """
 
-    # --- 1. list of all critics
-    # convert to list for consistent enumeration
-    all_critics = get_critics(ratings_data.values())
-    significant_critics = {critic:movies_rated
-                           for critic, movies_rated in all_critics.items()
-                           if movies_rated > SIGNIFICANCE_RATING_COUNT}
-    # --- 2. remove ratings by insignificant critics from the data
-    ratings_data = {url : (metascore, prune_ratings(ratings, significant_critics))
-                    for url, (metascore, ratings) in ratings_data.items()}
-    # --- 3. extract training set
+    # --- 1. extract training set
     training_keys = extract_training_keys(ratings_data, training_pct)
     training_data = [ratings for url, ratings in ratings_data.items()
                      if url in training_keys]
-    # --- 4. actual constrained optimization
-    result = infer_weights(training_data,
-                           list(significant_critics),
-                           tech)
+    # --- 2. construct optimization parameters
+    r_dash, e_matrix, p_vector = construct_opt_params(training_data, significant_critics)
+
+    # --- 3. actual constrained optimization
+    result = infer_weights(r_dash, e_matrix, p_vector, tech)
     if not result.success:
         error("optimization failed [%s]: %s" % (result.status, result.message))
-    # --- 5. how well did it do?
+
+    # --- 4. how well did it do?
     predicted_weights = extract_computed_weights(result, significant_critics)
     pretty_print_weights(significant_critics, predicted_weights)
     test_keys = set(ratings_data).difference(training_keys)
@@ -134,44 +143,19 @@ def train_and_test(ratings_data, training_pct, tech):
     print "RMSE: %.6f" % (m,)
     print "**********************"
 
-def infer_weights(training_data, all_critics, tech):
-    """Return a dictionary mapping critics to relative weights.
-
-    training_data: is a list of data, one per movie, of the form:
-
-        (overall_score, critic_scores)
-
-    where critic_scores is itself a dictionary of the form:
-
-        critic_name -> critic rating for the movie.
-
-    all_critics: an ordered list of critic names;
-    """
+def infer_weights(r_dash, e_matrix, p_vector, tech):
+    """Return a dictionary mapping critics to relative weights."""
 
     assert tech in TECHNIQUES
 
-    # --- 1. calculate the r_dash matrix
-    r_dash = []
-    for _, ratings in training_data:
-        r_dash.append([ratings.get(c, 0) for c in all_critics])
-    r_dash = np.matrix(r_dash)
-    # --- 2. calculate the e matrix
-    e_matrix = []
-    for _, ratings in training_data:
-        e_matrix.append([1 if c in ratings else 0 for c in all_critics])
-    e_matrix = np.matrix(e_matrix)
-    # --- 3. construct the p vector
-    p_vector = np.array([overall for overall, _ in training_data])
-    # --- 4. the actual model
-    m = len(training_data)
-    n = len(all_critics)
+    # basic statistics
+    m, n = np.shape(r_dash)
+    total_ratings = np.count_nonzero(e_matrix)
+    debug("m: %(m)s, n: %(n)s, total_ratings: %(total_ratings)s" % locals())
+
     # all theta values are positive
     bounds = [(0, 1)] * n            # min, max
     theta0 = np.array([1.0/n] * n)   # initial values
-    debug("m: %(m)s, n: %(n)s" % locals())
-    debug("r_dash: %(r_dash)s" % locals())
-    debug("e_matrix: %(e_matrix)s" % locals())
-    debug("p_vector: %(p_vector)s" % locals())
     def y(theta):
         theta = np.transpose(np.asmatrix(theta))
         numerator = r_dash * theta   # each of these is an m-vector:
@@ -224,12 +208,23 @@ def testitout(tech):
            {'w1': 59, 'w3': 79, 'w4': 91}]
 
     input = [(calc_overall_rating(weights, unr), unr) for unr in mcr]
-    result = infer_weights(input, set(weights), tech)
+    r_dash, e_matrix, p_vector = construct_opt_params(input, weights)
+    result = infer_weights(r_dash, e_matrix, p_vector, tech)
     if not result.success:
         error("optimization failed [%s]: %s" % (result.status, result.message))
-    predicted_weights = extract_computed_weights(infer_weights(input, set(weights), tech), weights)
+    predicted_weights = extract_computed_weights(result, weights)
     print ">>>> actual weights:", weights
     print ">>>> predicted_weights:", predicted_weights
+
+def preprocess(ratings_data):
+    all_critics = get_critics(ratings_data.values())
+    significant_critics = {critic:movies_rated
+                           for critic, movies_rated in all_critics.items()
+                           if movies_rated > RATING_COUNT_THRESHOLD}
+    # pruning actually happens here
+    ratings_data = {url : (metascore, prune_ratings(ratings, significant_critics))
+                    for url, (metascore, ratings) in ratings_data.items()}
+    return significant_critics, ratings_data
 
 if __name__ == '__main__':
 
@@ -255,5 +250,14 @@ if __name__ == '__main__':
         args_parser.error("how much data to train with?")
     if options.tech not in TECHNIQUES:
         args_parser.error("tech should be one of: %s" % (', '.join(TECHNIQUES),))
-    movie_ratings = pickle.loads(sys.stdin.read())
-    train_and_test(movie_ratings, options.train_with, options.tech)
+
+    # --- 1. load previously extracted movie rating data
+    # ratings_data is a dictionary of the form:
+    #     movie_url -> (metascore, individual_ratings)
+    # where individual_ratings is itself a dictionary of the form:
+    #     critic_name -> rating
+    ratings_data = pickle.loads(sys.stdin.read())
+    # --- 2. preprocessing: remove data corresponding to insignificant critics
+    # dictionary of the form: critic_name -> movies_rated
+    significant_critics, ratings_data = preprocess(ratings_data)
+    train_and_test(ratings_data, options.train_with, options.tech, significant_critics)
