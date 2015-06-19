@@ -1,3 +1,5 @@
+ - scale the produced theta values to be between 0 and 1.
+ - introduce two new Make targets: make slsqp, make cobyla
  - Number of files in movie dir hasn't changed at all: bug with adding new movies?
  - migrate to using setup.py
  - in ratings.py, raise error if XPATHTOOLS not defined in env
