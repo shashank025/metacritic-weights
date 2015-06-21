@@ -21,5 +21,5 @@ Run the following commands _after_ you make install.
 
 You should see the following output files (among others):
 
-`theta_*.report`: pretty printing of the learned theta values for each learning algorithm
-`perf_*.report`: pretty printing of the performance analysis of each learning algorithm
+* `theta_*.report`: pretty printing of the learned theta values for each learning algorithm
+* `perf_*.report`: pretty printing of the performance analysis of each learning algorithm
