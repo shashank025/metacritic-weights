@@ -48,7 +48,7 @@ install:
 # --- 6. pickle dump of Python dictionary that contains movie ratings
 # requires: Python module lxml
 ratings.pkl: url_suffixes movie
-	XPATHTOOLS=${XPT} mc_extract_raw_ratings < url_suffixes > /tmp/ratings.pkl && mv /tmp/ratings.pkl ratings.pkl
+	XPATHTOOLS=${XPT} mc_extract_raw_ratings < url_suffixes > /tmp/ratings.pkl 2> ratings.err && mv /tmp/ratings.pkl ratings.pkl
 
 # --- 7. extract critics who've rated at least a few movies
 sig.pkl: ratings.pkl
@@ -84,11 +84,13 @@ predict_cobyla.pkl: theta_cobyla.pkl
 	mc_predict --theta theta_cobyla.pkl < test.pkl > predict_cobyla.pkl
 
 # --- 12. how did they do?
-perf_slsqp.report:
+perf_slsqp.report: predict_slsqp.pkl
 	mc_perf_report -p predict_slsqp.pkl -i pruned.pkl > perf_slsqp.report
 
-perf_cobyla.report:
+perf_cobyla.report: predict_cobyla.pkl
 	mc_perf_report -p predict_cobyla.pkl -i pruned.pkl > perf_cobyla.report
+
+all: perf_slsqp.report perf_cobyla.report
 
 clean:
 	rm *.pkl *.report
