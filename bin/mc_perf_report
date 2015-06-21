@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+"""\
+%prog -p prediction.pkl -i ratings.pkl
+
+Show how the predictions stack up against actual metascores.
+"""
+
+import sys
+import argparse
+import pickle
+
+from metacritic.metacritic import performance_report
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-p', '--predicted',
+                        required=True,
+                        help="name of file that contains predictions")
+    parser.add_argument('-i', '--input',
+                        required=True,
+                        help="name of file which contained original ratings data")
+    args = parser.parse_args()
+
+    predictions = pickle.loads(open(args.predicted).read())
+    input = pickle.loads(open(args.input).read())
+    performance_report(input, predictions)
+

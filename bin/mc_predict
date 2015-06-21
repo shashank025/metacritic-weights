@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+
+"""\
+%prog --theta <theta.pkl> < test_data.pkl > predicted_ratings.pkl
+
+Output predicted movie ratings for data in test set.
+"""
+
+
+import sys
+import argparse
+import pickle
+
+from metacritic.metacritic import predict
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--theta',
+                        help="pickle file containing learned theta values")
+    args = parser.parse_args()
+
+    test_data = pickle.loads(sys.stdin.read())
+    theta = pickle.loads(open(args.theta).read())
+    print pickle.dumps(predict(test_data, theta))

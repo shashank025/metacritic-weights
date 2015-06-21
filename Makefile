@@ -42,21 +42,43 @@ movie: url_suffixes
 		fi \
 	done < url_suffixes
 
+install:
+	$(PYTHON) setup.py install
+
 # --- 6. pickle dump of Python dictionary that contains movie ratings
 # requires: Python module lxml
-ratings.pkl: url_suffixes ratings.py movie
-	XPATHTOOLS=${XPT} $(PYTHON) ratings.py < url_suffixes > /tmp/ratings.pkl && mv /tmp/ratings.pkl ratings.pkl
+ratings.pkl: url_suffixes movie
+	XPATHTOOLS=${XPT} mc_extract_raw_ratings < url_suffixes > /tmp/ratings.pkl && mv /tmp/ratings.pkl ratings.pkl
 
-# --- 7. Sequential Least SQuares Programming
-slsqp: ratings.pkl metacritic.py
-	$(PYTHON) metacritic.py -s SLSQP -t 80 < ratings.pkl > slsqp 2> err.slsqp
+# --- 7. extract critics who've rated at least a few movies
+sig.pkl: ratings.pkl
+	mc_extract_significant_critics < ratings.pkl > /tmp/sig.pkl && mv /tmp/sig.pkl sig.pkl
 
-cobyla: ratings.pkl metacritic.py
-	$(PYTHON) metacritic.py -s COBYLA -t 80 < ratings.pkl > cobyla 2> err.cobyla
+# --- 8. eliminate ratings from insignificant critics
+pruned.pkl: sig.pkl
+	mc_prune -s sig.pkl < ratings.pkl > /tmp/pruned.pkl && mv /tmp/pruned.pkl pruned.pkl
 
-all: slsqp cobyla
+# --- 9. partition data into train and test set
+train.pkl: pruned.pkl
+	mc_partition -f 80 --test test.pkl --train train.pkl < pruned.pkl
 
-clean_movie:
-	rm -rf movie
+# --- 10. train the models
+theta_slsqp.pkl: train.pkl
+	mc_train -s SLSQP --significant-critics sig.pkl < train.pkl > /tmp/theta_slsqp.pkl && mv /tmp/theta_slsqp.pkl theta_slsqp.pkl
 
-clean: clean_movie
+theta_cobyla.pkl: train.pkl
+	mc_train -s COBYLA --significant-critics sig.pkl < train.pkl >  /tmp/theta_cobyla.pkl && mv /tmp/theta_cobyla.pkl theta_cobyla.pkl
+
+# --- 11. report: theta values
+report_theta_slsqp.pkl: theta_slsqp.pkl
+	mc_report_weights < theta_slsqp.pkl > report_theta_slsqp.pkl
+
+report_theta_cobyla.pkl: theta_cobyla.pkl
+	mc_report_weights < theta_cobyla.pkl > report_theta_cobyla.pkl
+
+# --- 12. predict metascores
+predict_slsqp.pkl: theta_slsqp.pkl
+	mc_predict --theta theta_slsqp.pkl < test.pkl > predict_slsqp.pkl
+
+predict_cobyla.pkl: theta_cobyla.pkl
+	mc_predict --theta theta_cobyla.pkl < test.pkl > predict_cobyla.pkl

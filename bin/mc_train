@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+"""\
+%prog --solver <technique> --significant-critics significant.pkl < training_data.pkl > thetas.pkl
+
+Extract theta values from training data using specified solver.
+"""
+
+
+import sys
+import argparse
+import pickle
+
+from metacritic.metacritic import train
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-s', '--solver',
+                        help="what solution technique to use? "
+                        "currently supported values are: COBYLA and SLSQP; "
+                        "see http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize")
+    parser.add_argument('--significant-critics',
+                        required=True,
+                        help="pickle file contained previously extracted list of significant critics")
+    args = parser.parse_args()
+
+    training_data = pickle.loads(sys.stdin.read())
+    significant_critics = pickle.loads(open(args.significant_critics).read())
+    theta = train(training_data, list(significant_critics), args.solver)
+    print pickle.dumps(theta)

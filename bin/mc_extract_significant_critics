@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+"""\
+%prog [-t <int>] < ratings_data.pkl > significant_critics.pkl
+
+Extract critics who've rated at least a specified number of movies.
+Dumps a pickle file that contains a dictionary of the form:
+    critic_name -> movies_rated
+"""
+
+import sys
+import argparse
+import pickle
+
+from metacritic.metacritic import DEFAULT_RATING_COUNT_THRESHOLD
+from metacritic.metacritic import get_critics, get_significant_critics
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-t', '--ratings-count-threshold',
+                        type=int,
+                        default=DEFAULT_RATING_COUNT_THRESHOLD,
+                        help="only consider a rating if the critic has rated these many movies")
+    args = parser.parse_args()
+    ratings_data = pickle.loads(sys.stdin.read())
+    print pickle.dumps(get_significant_critics(get_critics(ratings_data),
+                                               args.ratings_count_threshold))
