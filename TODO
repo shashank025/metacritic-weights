@@ -1,4 +1,4 @@
- - decouple the extraction of training set from the optimization routine
+ X decouple the extraction of training set from the optimization routine
     * this will allow consistent comparisons
  X scale the produced theta values to be between 0 and 1.
  X introduce two new Make targets: make slsqp, make cobyla
@@ -6,12 +6,12 @@
  X migrate to using setup.py
  - in ratings.py, raise error if XPATHTOOLS not defined in env
  - store movies, critics and ratings in a database (sqlite?)
- - switch to argparser
+ X switch to argparser
  - do i need to worry about regularization?
  - why is minimize() failing to converge?
  - Supply Jacobians/Hessians to objective function and ineq constraints
  X how to measure the performance of the optimization model?
- - suppress html parser errors from xpathtool runs
+ X suppress html parser errors from xpathtool runs
  - expose following configuration as options:
     * both penalty terms
     * critic significance threshold
