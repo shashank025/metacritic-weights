@@ -90,7 +90,7 @@ perf_slsqp.report: predict_slsqp.pkl
 perf_cobyla.report: predict_cobyla.pkl
 	mc_perf_report -p predict_cobyla.pkl -i pruned.pkl > perf_cobyla.report
 
-all: perf_slsqp.report perf_cobyla.report
+all: perf_slsqp.report perf_cobyla.report theta_slsqp.report theta_cobyla.report
 
 clean:
 	rm *.pkl *.report
