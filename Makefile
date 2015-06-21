@@ -60,7 +60,7 @@ pruned.pkl: sig.pkl
 
 # --- 9. partition data into train and test set
 train.pkl: pruned.pkl
-	mc_partition -f 80 --test test.pkl --train train.pkl < pruned.pkl
+	mc_partition -f .8 --test test.pkl --train train.pkl < pruned.pkl
 
 # --- 10. train the models
 theta_slsqp.pkl: train.pkl

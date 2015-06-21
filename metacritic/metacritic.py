@@ -30,6 +30,10 @@ def error(msg):
     print >> sys.stderr, "***error*** " + str(msg)
     sys.stderr.flush()
 
+def bound(val, lo, hi):
+    """modify val such that lo <= val <= hi"""
+    return min(max(val, lo), hi)
+
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
         print "%.6f %s" % (weight, critic_name)
@@ -205,7 +209,7 @@ def predict(test_data, theta):
     result = {}
     for movie, (_, individual_ratings) in test_data.items():
         predicted_metascore = calc_overall_rating(theta, individual_ratings)
-        result[movie] = predicted_metascore
+        result[movie] = bound(predicted_metascore, 0, 100)
     return result
 
 def err(actual, predicted):
