@@ -13,6 +13,7 @@ setup(name='metacritic',
       license='MIT',
       packages=['metacritic'],
       scripts=[
+          'bin/mc_ytheta',
           'bin/mc_extract_raw_ratings',
           'bin/mc_extract_significant_critics',
           'bin/mc_prune',

@@ -211,7 +211,7 @@ def predict(test_data, theta):
 def err(actual, predicted):
     return (predicted - actual) * 1.0 /actual
 
-def get_accuracy(url, actual, predicted, error_pct, ratings):
+def get_accuracy(url, actual, predicted, error_pct):
     return "[p: %3.2f, a: %3.2f, e: %3.2f] %s" % (predicted, actual, error_pct, url)
 
 def rmse(errors):
@@ -221,11 +221,11 @@ def rmse(errors):
 def performance_report(ratings_data, predictions):
     errors = []
     report = []
-    for movie, predicted_metascore in predictions.items():
-        actual_metascore, _ = ratings_data[movie]
-        e = err(actual_overall, predicted_overall)
+    for movie, predicted in predictions.items():
+        actual, _ = ratings_data[movie]
+        e = err(actual, predicted)
         errors.append(e)
-        report.append(get_accuracy(u, actual_overall, predicted_overall, e * 100, ratings))
+        report.append(get_accuracy(movie, actual, predicted, e * 100))
     m = rmse(errors)
     print
     print "**********************"

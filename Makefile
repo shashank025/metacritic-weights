@@ -70,11 +70,11 @@ theta_cobyla.pkl: train.pkl
 	mc_train -s COBYLA --significant-critics sig.pkl < train.pkl >  /tmp/theta_cobyla.pkl && mv /tmp/theta_cobyla.pkl theta_cobyla.pkl
 
 # --- 11. report: theta values
-report_theta_slsqp.pkl: theta_slsqp.pkl
-	mc_report_weights < theta_slsqp.pkl > report_theta_slsqp.pkl
+theta_slsqp.report: theta_slsqp.pkl
+	mc_report_weights < theta_slsqp.pkl > theta_slsqp.report
 
-report_theta_cobyla.pkl: theta_cobyla.pkl
-	mc_report_weights < theta_cobyla.pkl > report_theta_cobyla.pkl
+theta_cobyla.report: theta_cobyla.pkl
+	mc_report_weights < theta_cobyla.pkl > theta_cobyla.report
 
 # --- 12. predict metascores
 predict_slsqp.pkl: theta_slsqp.pkl
@@ -82,3 +82,13 @@ predict_slsqp.pkl: theta_slsqp.pkl
 
 predict_cobyla.pkl: theta_cobyla.pkl
 	mc_predict --theta theta_cobyla.pkl < test.pkl > predict_cobyla.pkl
+
+# --- 12. how did they do?
+perf_slsqp.report:
+	mc_perf_report -p predict_slsqp.pkl -i pruned.pkl > perf_slsqp.report
+
+perf_cobyla.report:
+	mc_perf_report -p predict_cobyla.pkl -i pruned.pkl > perf_cobyla.report
+
+clean:
+	rm *.pkl *.report
