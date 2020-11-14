@@ -1,19 +1,25 @@
+ - Number of files in movie dir hasn't changed at all: bug with adding new movies?
+ - in ratings.py, raise error if XPATHTOOLS not defined in env
+ - store movies, critics and ratings in a database (sqlite?)
+ - do i need to worry about regularization?
+ - why is minimize() failing to converge?
+ - Supply Jacobians/Hessians to objective function and ineq constraints
+ - expose following configuration as options:
+    * both penalty terms
+    * critic significance threshold
+ - make should complain if wget is not found
+ - make should not litter the working directory with unnecessary files
+
+DONE
+---
+
+ X option: combine all reviewers from a publication into one.
+ X plot y(theta) to understand if it is convex?
+ X how to measure the performance of the optimization model?
+ X suppress html parser errors from xpathtool runs
+ X switch to argparser
+ X migrate to using setup.py
  X decouple the extraction of training set from the optimization routine
     * this will allow consistent comparisons
  X scale the produced theta values to be between 0 and 1.
  X introduce two new Make targets: make slsqp, make cobyla
- - Number of files in movie dir hasn't changed at all: bug with adding new movies?
- X migrate to using setup.py
- - in ratings.py, raise error if XPATHTOOLS not defined in env
- - store movies, critics and ratings in a database (sqlite?)
- X switch to argparser
- - do i need to worry about regularization?
- - why is minimize() failing to converge?
- - Supply Jacobians/Hessians to objective function and ineq constraints
- X how to measure the performance of the optimization model?
- X suppress html parser errors from xpathtool runs
- - expose following configuration as options:
-    * both penalty terms
-    * critic significance threshold
- X option: combine all reviewers from a publication into one.
- X plot y(theta) to understand if it is convex?

@@ -1,26 +1,28 @@
 # if you see a new version of xpathtool, you only need to change this
 XPT_VERSION=xpathtool-20071102
-
 XPT_URL=http://www.semicomplete.com/files/xpathtool/${XPT_VERSION}.tar.gz
-XPT=${XPT_VERSION}/xpathtool/xpathtool.sh
+XPT_SCRIPT=xpathtool.sh
+XPT=${XPT_VERSION}/xpathtool/${XPT_SCRIPT}
+XPT_EXE=/tmp/${XPT_SCRIPT}
 SCRAPE_FROM=http://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
 BASE_URL=http://www.metacritic.com
 PYTHON=/usr/bin/python
 
-# --- 1. get necessary tools
-${XPT}:
+# --- 1. get the xpath tool
+${XPT_EXE}:
 	wget ${XPT_URL} -O xpt.tar.gz
 	gzip -d xpt.tar.gz
 	tar xvf xpt.tar
+	mv ${XPT_SCRIPT} ${XPT_EXE}
 	rm xpt.tar
 
 # --- 2. this html contains a bunch of metacritic urls
-urls_html:
+urls_html: ${XPT_EXE}
 	wget ${SCRAPE_FROM} -O urls_html
 
 # --- 3. get movie suffixes
 url_suffixes: urls_html
-	cat urls_html | ${XPT} --ihtml '//@href' | grep '^/movie' | sed -e 's/^\///g' | sort | uniq > /tmp/url_suffixes
+	cat urls_html | ${XPT_EXE} --ihtml '//@href' | grep '^/movie' | sed -e 's/^\///g' | sort | uniq > /tmp/url_suffixes
 	if [ ! -e url_suffixes ]; then \
 		mv /tmp/url_suffixes url_suffixes; \
 	else \
@@ -29,7 +31,7 @@ url_suffixes: urls_html
 			mv /tmp/url_suffixes.1 url_suffixes; \
 		fi \
 	fi
-	touch url_suffixes # otherwise, urls_xml will be newer than url_suffixes
+	touch url_suffixes # otherwise, urls_html will be newer than url_suffixes
 
 # --- 4. download and cache movie critic reviews html
 # url suffix -> actual critic ratings:
@@ -43,12 +45,12 @@ movie: url_suffixes
 	done < url_suffixes
 
 install:
-	$(PYTHON) setup.py install
+	$(PYTHON) setup.py install --user
 
 # --- 6. pickle dump of Python dictionary that contains movie ratings
 # requires: Python module lxml
 ratings.pkl: url_suffixes movie
-	XPATHTOOLS=${XPT} mc_extract_raw_ratings < url_suffixes > /tmp/ratings.pkl 2> ratings.err && mv /tmp/ratings.pkl ratings.pkl
+	XPATHTOOLS=${XPT_EXE} mc_extract_raw_ratings < url_suffixes > /tmp/ratings.pkl 2> ratings.err && mv /tmp/ratings.pkl ratings.pkl
 
 # --- 7. extract critics who've rated at least a few movies
 sig.pkl: ratings.pkl
