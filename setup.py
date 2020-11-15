@@ -26,6 +26,7 @@ setup(name='metacritic',
       install_requires=[
           'lxml',
           'numpy',
+          'requests',
           'scipy',
         ],
       include_package_data=True,
