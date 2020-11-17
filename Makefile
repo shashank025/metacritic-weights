@@ -1,98 +1,88 @@
-# if you see a new version of xpathtool, you only need to change this
-XPT_VERSION=xpathtool-20071102
-XPT_URL=http://www.semicomplete.com/files/xpathtool/${XPT_VERSION}.tar.gz
-XPT_SCRIPT=xpathtool.sh
-XPT=${XPT_VERSION}/xpathtool/${XPT_SCRIPT}
-XPT_EXE=/tmp/${XPT_SCRIPT}
-SCRAPE_FROM=http://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
-BASE_URL=http://www.metacritic.com
-PYTHON=/usr/bin/python
+PYTHON=/usr/bin/env python3
+METACRITIC_NEW_RELEASES_PAGE=https://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
+SENTINEL=__CONTENT_UPDATED
 
-# --- 1. get the xpath tool
-${XPT_EXE}:
-	wget ${XPT_URL} -O xpt.tar.gz
-	gzip -d xpt.tar.gz
-	tar xvf xpt.tar
-	mv ${XPT_SCRIPT} ${XPT_EXE}
-	rm xpt.tar
+# --- 1. touch a new file for each movie url in subdirectory
+movies:
+	mkdir -p movies
+	mc_scrape_movie_urls ${METACRITIC_NEW_RELEASES_PAGE} 2> /tmp/scrape.err > /tmp/movie_urls
+	while read url; do \
+		if [ ! -e movies/$${url} ]; then \
+			touch movies/$${url}; \
+		fi; \
+	done < /tmp/movie_urls
+	rm /tmp/movie_urls
 
-# --- 2. this html contains a bunch of metacritic urls
-urls_html: ${XPT_EXE}
-	wget ${SCRAPE_FROM} -O urls_html
+# --- 2. download raw HTML content of critic reviews for each movie, in parallel
+movies/__CONTENT_UPDATED: movies
+	mkdir -p data
+	mc_download_content --sentinel ${SENTINEL} movies
 
-# --- 3. get movie suffixes
-url_suffixes: urls_html
-	cat urls_html | ${XPT_EXE} --ihtml '//@href' | grep '^/movie' | sed -e 's/^\///g' | sort | uniq > /tmp/url_suffixes
-	if [ ! -e url_suffixes ]; then \
-		mv /tmp/url_suffixes url_suffixes; \
-	else \
-		if cmp url_suffixes /tmp/url_suffixes; then \
-			sort /tmp/url_suffixes url_suffixes | uniq > /tmp/url_suffixes.1; \
-			mv /tmp/url_suffixes.1 url_suffixes; \
-		fi \
-	fi
-	touch url_suffixes # otherwise, urls_html will be newer than url_suffixes
+# --- 3. extract raw ratings
+data/ratings.pkl: movies/${SENTINEL}
+	mkdir -p data
+	mc_extract_raw_ratings \
+			--current-data data/ratings.pkl \
+			movies > /tmp/ratings.pkl 2> /tmp/ratings.err && \
+		mv /tmp/ratings.pkl data/ratings.pkl
 
-# --- 4. download and cache movie critic reviews html
-# url suffix -> actual critic ratings:
-#   movie/a-haunted-house -> http://www.metacritic.com/movie/a-haunted-house/critic-reviews
-movie: url_suffixes
-	mkdir -p movie
-	while read suffix; do \
-		if [ ! -e $$suffix ]; then \
-			wget ${BASE_URL}/$$suffix/critic-reviews -O $$suffix; \
-		fi \
-	done < url_suffixes
+# --- 4. extract critics who've rated at least a few movies
+data/sig.pkl: data/ratings.pkl
+	mc_extract_significant_critics < data/ratings.pkl > /tmp/sig.pkl && mv /tmp/sig.pkl data/sig.pkl
 
-install:
-	$(PYTHON) setup.py install --user
+# --- 5. eliminate ratings from insignificant critics
+data/pruned.pkl: data/sig.pkl
+	mc_prune -s data/sig.pkl < data/ratings.pkl > /tmp/pruned.pkl && mv /tmp/pruned.pkl data/pruned.pkl
 
-# --- 6. pickle dump of Python dictionary that contains movie ratings
-# requires: Python module lxml
-ratings.pkl: url_suffixes movie
-	XPATHTOOLS=${XPT_EXE} mc_extract_raw_ratings < url_suffixes > /tmp/ratings.pkl 2> ratings.err && mv /tmp/ratings.pkl ratings.pkl
+# --- 6. partition data into train and test set
+data/train.pkl: data/pruned.pkl
+	mc_partition -f .8 --test data/test.pkl --train data/train.pkl < data/pruned.pkl
 
-# --- 7. extract critics who've rated at least a few movies
-sig.pkl: ratings.pkl
-	mc_extract_significant_critics < ratings.pkl > /tmp/sig.pkl && mv /tmp/sig.pkl sig.pkl
+# --- 7. train the models
+data/theta_slsqp.pkl: data/train.pkl
+	mc_train \
+		-s SLSQP \
+		--significant-critics data/sig.pkl < data/train.pkl > /tmp/theta_slsqp.pkl && \
+		mv /tmp/theta_slsqp.pkl data/theta_slsqp.pkl
 
-# --- 8. eliminate ratings from insignificant critics
-pruned.pkl: sig.pkl
-	mc_prune -s sig.pkl < ratings.pkl > /tmp/pruned.pkl && mv /tmp/pruned.pkl pruned.pkl
+data/theta_cobyla.pkl: data/train.pkl
+	mc_train \
+		-s COBYLA \
+		--significant-critics sig.pkl < data/train.pkl >  /tmp/theta_cobyla.pkl && \
+	mv /tmp/theta_cobyla.pkl data/theta_cobyla.pkl
 
-# --- 9. partition data into train and test set
-train.pkl: pruned.pkl
-	mc_partition -f .8 --test test.pkl --train train.pkl < pruned.pkl
+# --- 8. report: theta values
+data/theta_slsqp.report: data/theta_slsqp.pkl
+	mc_report_weights < data/theta_slsqp.pkl > data/theta_slsqp.report
 
-# --- 10. train the models
-theta_slsqp.pkl: train.pkl
-	mc_train -s SLSQP --significant-critics sig.pkl < train.pkl > /tmp/theta_slsqp.pkl && mv /tmp/theta_slsqp.pkl theta_slsqp.pkl
+data/theta_cobyla.report: data/theta_cobyla.pkl
+	mc_report_weights < data/theta_cobyla.pkl > data/theta_cobyla.report
 
-theta_cobyla.pkl: train.pkl
-	mc_train -s COBYLA --significant-critics sig.pkl < train.pkl >  /tmp/theta_cobyla.pkl && mv /tmp/theta_cobyla.pkl theta_cobyla.pkl
+# --- 9. predict metascores
+data/predict_slsqp.pkl: data/theta_slsqp.pkl
+	mc_predict --theta data/theta_slsqp.pkl < data/test.pkl > data/predict_slsqp.pkl
 
-# --- 11. report: theta values
-theta_slsqp.report: theta_slsqp.pkl
-	mc_report_weights < theta_slsqp.pkl > theta_slsqp.report
+data/predict_cobyla.pkl: data/theta_cobyla.pkl
+	mc_predict --theta data/theta_cobyla.pkl < data/test.pkl > data/predict_cobyla.pkl
 
-theta_cobyla.report: theta_cobyla.pkl
-	mc_report_weights < theta_cobyla.pkl > theta_cobyla.report
+# --- 10. how did they do?
+data/perf_slsqp.report: data/predict_slsqp.pkl data/pruned.pkl
+	mc_perf_report -p data/predict_slsqp.pkl -i data/pruned.pkl > data/perf_slsqp.report
 
-# --- 12. predict metascores
-predict_slsqp.pkl: theta_slsqp.pkl
-	mc_predict --theta theta_slsqp.pkl < test.pkl > predict_slsqp.pkl
+data/perf_cobyla.report: data/predict_cobyla.pk data/pruned.pkl
+	mc_perf_report -p data/predict_cobyla.pkl -i data/pruned.pkl > data/perf_cobyla.report
 
-predict_cobyla.pkl: theta_cobyla.pkl
-	mc_predict --theta theta_cobyla.pkl < test.pkl > predict_cobyla.pkl
+all: data/perf_slsqp.report data/perf_cobyla.report data/theta_slsqp.report data/theta_cobyla.report
 
-# --- 12. how did they do?
-perf_slsqp.report: predict_slsqp.pkl
-	mc_perf_report -p predict_slsqp.pkl -i pruned.pkl > perf_slsqp.report
 
-perf_cobyla.report: predict_cobyla.pkl
-	mc_perf_report -p predict_cobyla.pkl -i pruned.pkl > perf_cobyla.report
-
-all: perf_slsqp.report perf_cobyla.report theta_slsqp.report theta_cobyla.report
-
+# TODO: add addiitonal make targets to re-download content, etc.
 clean:
-	rm *.pkl *.report
+	rm data/*.pkl data/*.report
+
+# run as sudo
+clean_dist:
+	$(PYTHON) setup.py clean --all
+
+# run as sudo
+install:
+	$(PYTHON) setup.py install

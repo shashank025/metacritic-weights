@@ -1,104 +1,66 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import os
-import sys
-import subprocess
-import optparse
+import argparse
 import pickle
+import sys
+import traceback
 
-from lxml import etree as ET
+from metacritic import common
+from metacritic import scraper
+from pathlib import Path
 
-DEBUG = True
+from metacritic.scraper import DEFAULT_SENTINEL
 
-def debug(msg):
-    if debug:
-        print >> sys.stderr, msg
-        sys.stderr.flush()
 
-def warn(msg):
-    print >> sys.stderr, "***warning*** " + msg
-    sys.stderr.flush()
+def main(content_dir, sentinel, current_data_filename, group_pub):
+    new_ratings = scraper.extract_all_ratings(
+        content_dir,
+        sentinel,
+        group_pub=args.group_pub)
+    if not current_data_filename:
+        sys.stdout.buffer.write(pickle.dumps(new_ratings))
+        return
+    filename = Path(current_data_filename)
+    if not filename.is_file():
+        sys.stdout.buffer.write(pickle.dumps(new_ratings))
+        return
+    with open(filename, 'rb') as f:
+        original = pickle.loads(f.read())
+        original.update(new_ratings)
+        sys.stdout.buffer.write(pickle.dumps(original))
 
-def error(msg):
-    print >> sys.stderr, "***error*** " + msg
-    sys.stderr.flush()
-
-def xpathtools(args, file_handle):
-    XPATHTOOLS = os.environ['XPATHTOOLS']
-    cmd = [XPATHTOOLS] + args
-    debug("Running cmd: %s" % (cmd,))
-    return subprocess.check_output(cmd, stdin=file_handle, shell=False)
-
-def get_overall_score(file_handle):
-    args = ['--otext',
-            '--ihtml',
-            "//span[@itemprop='ratingValue']"]
-    score_text = xpathtools(args, file_handle)
-    try:
-        return int(score_text)
-    except:
-        return None
-
-def get_review_stats_xml(file_handle):
-    args = ['--oxml', '--ihtml',  '//div[@class="review_stats"]']
-    return xpathtools(args, file_handle)
-
-def extract_ratings(reviews_xml, group_pub):
-    ratings = {}
-    root = ET.fromstring(reviews_xml)
-    for div in root.xpath('.//div[@class="review_stats"]'):
-        match = div.xpath('.//div[starts-with(@class, "metascore_w")]')
-        if not match:
-            warn("no score found for review; moving on ...")
-            continue
-        score = int(match[0].text)
-        match = div.find('.//div[@class="source"]/a')
-        pub = match.text.strip() if match is not None else None
-        match = div.find('.//div[@class="author"]/a')
-        auth = match.text.strip() if match is not None else None
-        if not auth and not pub:
-            warn("no auth/pub for review; moving on ...")
-            continue
-        if auth and pub:
-            auth = pub if group_pub else '%s (%s)' % (auth, pub)
-        if not auth and pub:
-            auth = pub
-        ratings[auth] = score
-    return ratings
-
-def get_movie_stats(f, group_pub):
-    f.seek(0)
-    overall_score = get_overall_score(f)
-    debug(">>>> overall score: %s" % (overall_score,))
-    f.seek(0)
-    review_stats_xml = get_review_stats_xml(f)
-    all_ratings = extract_ratings(review_stats_xml, group_pub)
-    return (overall_score, all_ratings)
-
-def get_ratings(suffix, group_pub):
-    if os.path.exists(suffix):
-        with open(suffix, 'rb') as f:
-            return get_movie_stats(f, group_pub)
-    return (None, None)
-
-def collect_ratings(url_suffixes, group_pub):
-    return dict([(u, (overall, r))
-                 for u, (overall, r) in [(u, get_ratings(u, group_pub))
-                                         for u in url_suffixes]
-                 if (overall and r)])
 
 if __name__ == '__main__':
-
-    args_parser = optparse.OptionParser(usage="""
-    %prog < url_suffixes > pickledump
+    parser = argparse.ArgumentParser(description="""\
+    Extract critic ratings and overall metascore from downloaded movie content page.
 
     Outputs a pickle dump of a Python dictionary that holds critic ratings for specified movies.
     """)
-    args_parser.add_option('-g', '--group-publication',
-                           action='store_true',
-                           dest="group_pub",
-                           help="group all reviewers from a publication into one super-reviewer")
-    options, args = args_parser.parse_args()
-    url_suffixes = [line.strip() for line in sys.stdin.readlines()]
-    movie_ratings = collect_ratings(url_suffixes, options.group_pub)
-    print pickle.dumps(movie_ratings)
+    parser.add_argument(
+        '--group-publication', '-g',
+        action='store_true',
+        default=False,
+        dest="group_pub",
+        help="group all reviewers from a publication into one super-reviewer")
+    parser.add_argument(
+        "--current-data",
+        help="""\
+        Points to a cPickle file that represents current ratings data, if any.
+        The output will be a merge of this existing data, plus any new reviews.
+        """)
+    parser.add_argument(
+        "--sentinel",
+        help="""\
+        A file in the content_dir that is touched to indicate one or more \
+        url contents were downloaded. This should be excluded.
+        Default: __CONTENT_UPDATED.
+        """)
+    parser.add_argument(
+        "content_dir",
+        help="Directory containing movie content")
+    args = parser.parse_args()
+    main(
+        args.content_dir,
+        args.sentinel if args.sentinel else DEFAULT_SENTINEL,
+        args.current_data,
+        args.group_pub)

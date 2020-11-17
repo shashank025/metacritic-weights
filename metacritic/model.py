@@ -11,24 +11,15 @@ import numpy as np
 from numpy import linalg as LA
 import scipy.optimize as sci
 
-DEBUG = True
+from metacritic.common import debug
+from metacritic.common import err
+
+
 TECHNIQUES = frozenset(['SLSQP','COBYLA'])
 DEFAULT_RATING_COUNT_THRESHOLD = 5    # critic must rate at least these many movies to be considered.
 OOB_PENALTY = 100                     # how much to penalize the objective fn when a theta value is out of bounds.
 NIH_PENALTY = 100                     # how much to penalize the objective fn when theta values dont add up to 1.
 
-def debug(msg):
-    if DEBUG:
-        print >> sys.stderr, msg
-        sys.stderr.flush()
-
-def warn(msg):
-    print >> sys.stderr, "***warning*** " + str(msg)
-    sys.stderr.flush()
-
-def error(msg):
-    print >> sys.stderr, "***error*** " + str(msg)
-    sys.stderr.flush()
 
 def bound(val, lo, hi):
     """modify val such that lo <= val <= hi"""
@@ -36,7 +27,7 @@ def bound(val, lo, hi):
 
 def pretty_print_weights(all_critics, weights):
     for critic_name, weight in sorted(weights.items(), key=itemgetter(1), reverse=True):
-        print "%.6f %s" % (weight, critic_name)
+        print("%.6f %s" % (weight, critic_name))
 
 def scale_critic_weights(predicted_weights):
     """Scale weights to be in interval [0, 1].
@@ -202,7 +193,7 @@ def train(ratings_data, critic_list, tech):
     r_dash, e_matrix, p_vector = construct_opt_params(ratings_data, critic_list)
     result = infer_weights(r_dash, e_matrix, p_vector, tech)
     if not result.success:
-        error("optimization failed [%s]: %s" % (result.status, result.message))
+        err("optimization failed [%s]: %s" % (result.status, result.message))
     return extract_computed_weights(result, critic_list)
 
 def predict(test_data, theta):
@@ -231,10 +222,10 @@ def performance_report(ratings_data, predictions):
         errors.append(e)
         report.append(get_accuracy(movie, actual, predicted, e * 100))
     m = rmse(errors)
-    print
-    print "**********************"
-    print "RMSE: %.6f" % (m,)
-    print "**********************"
-    print
+    print("")
+    print("**********************")
+    print("RMSE: %.6f" % (m,))
+    print("**********************")
+    print()
     for row in report:
-        print row
+        print(row)

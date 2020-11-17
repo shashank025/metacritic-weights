@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+"""
+Scrape url suffixes for movies from the Metacritic "New Releases Page".
+"""
+
+import argparse
+
+from metacritic import scraper
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="""\
+    Scrape the specified page and return a list of metacritic movie urls.
+
+    Each return url is a string `foo`, which can itself be scraped to
+    extract critic review info, by constructing a url of the form:
+
+    https://www.metacritic.com/movie/<foo>/critic-reviews
+    """)
+    parser.add_argument(
+        "metacritic_url",
+        help="""
+        url of the metacritic page that lists new movie releases, e.g.,
+        https://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
+        """)
+    args = parser.parse_args()
+    for url in scraper.scrape_movie_urls(args.metacritic_url):
+        print(url)

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def readme():
     with open('README.md') as f:
@@ -11,8 +11,10 @@ setup(name='metacritic',
       author='Shashank Ramaprasad',
       author_email='shashank.ramaprasad+metacritic@gmail.com',
       license='MIT',
-      packages=['metacritic'],
+      packages=find_packages(),
       scripts=[
+          'bin/mc_scrape_movie_urls',
+          'bin/mc_download_content',
           'bin/mc_ytheta',
           'bin/mc_extract_raw_ratings',
           'bin/mc_extract_significant_critics',
@@ -24,6 +26,7 @@ setup(name='metacritic',
           'bin/mc_perf_report',
       ],
       install_requires=[
+          'aiohttp',
           'lxml',
           'numpy',
           'requests',

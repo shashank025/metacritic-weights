@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """\
 %prog [-t <int>] < ratings_data.pkl > significant_critics.pkl
@@ -12,8 +12,8 @@ import sys
 import argparse
 import pickle
 
-from metacritic.metacritic import DEFAULT_RATING_COUNT_THRESHOLD
-from metacritic.metacritic import get_critics, get_significant_critics
+from metacritic.model import DEFAULT_RATING_COUNT_THRESHOLD
+from metacritic.model import get_critics, get_significant_critics
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -22,6 +22,7 @@ if __name__ == '__main__':
                         default=DEFAULT_RATING_COUNT_THRESHOLD,
                         help="only consider a rating if the critic has rated these many movies")
     args = parser.parse_args()
-    ratings_data = pickle.loads(sys.stdin.read())
-    print pickle.dumps(get_significant_critics(get_critics(ratings_data),
-                                               args.ratings_count_threshold))
+    ratings_data = pickle.loads(sys.stdin.buffer.read())
+    sys.stdout.buffer.write(
+        pickle.dumps(get_significant_critics(get_critics(ratings_data),
+                                             args.ratings_count_threshold)))
