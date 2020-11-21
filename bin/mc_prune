@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """\
 %prog -s significant_critics.pkl < raw_ratings_data.pkl > cleaned_data.pkl
@@ -12,7 +12,7 @@ import sys
 import argparse
 import pickle
 
-from metacritic.metacritic import prune
+from metacritic.model import prune
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,6 +20,6 @@ if __name__ == '__main__':
                         required=True,
                         help="previously extracted dictionary of significant critics")
     args = parser.parse_args()
-    significant_critics = pickle.loads(open(args.significant_critics).read())
-    ratings_data = pickle.loads(sys.stdin.read())
-    print pickle.dumps(prune(ratings_data, significant_critics))
+    significant_critics = pickle.loads(open(args.significant_critics, 'rb').read())
+    ratings_data = pickle.loads(sys.stdin.buffer.read())
+    sys.stdout.buffer.write(pickle.dumps(prune(ratings_data, significant_critics)))

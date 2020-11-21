@@ -1,11 +1,16 @@
 PYTHON=/usr/bin/env python3
 METACRITIC_NEW_RELEASES_PAGE=https://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
+HTML_CONTENT_FILE=/tmp/metacritic.html
 SENTINEL=__CONTENT_UPDATED
 
-# --- 1. touch a new file for each movie url in subdirectory
-movies:
+# --- 0. download metacritic new release html locally
+${HTML_CONTENT_FILE}:
+	curl -o ${HTML_CONTENT_FILE} ${METACRITIC_NEW_RELEASES_PAGE}
+
+# --- 1. extract movie urls, and create new file for each url in subdirectory
+movies: ${HTML_CONTENT_FILE}
 	mkdir -p movies
-	mc_scrape_movie_urls ${METACRITIC_NEW_RELEASES_PAGE} 2> /tmp/scrape.err > /tmp/movie_urls
+	mc_scrape_movie_urls ${HTML_CONTENT_FILE} 2> /tmp/scrape.err > /tmp/movie_urls
 	while read url; do \
 		if [ ! -e movies/$${url} ]; then \
 			touch movies/$${url}; \

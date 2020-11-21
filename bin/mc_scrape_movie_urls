@@ -19,11 +19,10 @@ if __name__ == '__main__':
     https://www.metacritic.com/movie/<foo>/critic-reviews
     """)
     parser.add_argument(
-        "metacritic_url",
-        help="""
-        url of the metacritic page that lists new movie releases, e.g.,
-        https://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed
+        "metacritic_html_content_filename",
+        help="""\
+        File containing downloaded HTML content from metacritic that can be parsed to extract movie urls.
         """)
     args = parser.parse_args()
-    for url in scraper.scrape_movie_urls(args.metacritic_url):
+    for url in scraper.scrape_movie_urls(args.metacritic_html_content_filename):
         print(url)

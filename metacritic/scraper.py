@@ -27,12 +27,10 @@ AUTHOR_PATTERN = './/span[contains(@class, "author")]'
 PUBLICATION_PATTERN = './/span[contains(@class, "source")]//img[@title]'
 
 
-def scrape_movie_urls(new_releases_page):
-    """Returns a list of metacritic movie url suffixes"""
+def scrape_movie_urls(html_content_filename):
+    """Extract metacritic movie url suffixes from specified metacritic html content"""
 
-    tree = html.fromstring(
-        requests.get(new_releases_page,
-                     headers={'User-Agent': USER_AGENT}).content)
+    tree = html.parse(html_content_filename)
     return (
         PREFIX_PATTERN.sub('', a_node.get('href'))
         for a_node in tree.xpath('//a[@href]')
@@ -111,6 +109,9 @@ def extract_publication(review_node):
 
 def extract_ratings_for_movie(filename, group_pub=False):
     tree = html.parse(filename)
+    if not tree.getroot():
+        # if the file is empty, there is no tree!
+        return None
     metascore = get_overall_score(tree)
     if not metascore:
         err(f"could not extract metascore for: {filename}")
