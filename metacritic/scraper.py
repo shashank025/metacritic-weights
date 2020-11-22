@@ -18,8 +18,10 @@ from metacritic.common import info
 
 USER_AGENT = 'Mozilla/5.0'
 PREFIX_PATTERN = re.compile(r'''^/movie/''')
+SUFFIX_PATTERN = re.compile('/(critic|user)-reviews$')
 DEFAULT_SENTINEL = '__CONTENT_UPDATED'
 
+MOVIE_HREF_PATTERN = '//a[starts-with(@href, "/movie/")]'
 METASCORE_SPAN_PATTERN = '//table[@class="simple_summary marg_btm1"]//span[starts-with(@class, "metascore_w")]'
 REVIEW_PATTERN = '//div[starts-with(@class, "review")]'
 INDIVIDUAL_RATING_PATTERN = './/div[starts-with(@class, "metascore_w")]'
@@ -31,10 +33,13 @@ def scrape_movie_urls(html_content_filename):
     """Extract metacritic movie url suffixes from specified metacritic html content"""
 
     tree = html.parse(html_content_filename)
-    return (
-        PREFIX_PATTERN.sub('', a_node.get('href'))
-        for a_node in tree.xpath('//a[@href]')
-        if a_node.get('href').startswith('/movie/'))
+    urls = set()
+    for a_node in tree.xpath(MOVIE_HREF_PATTERN):
+        href = a_node.get('href')
+        href = PREFIX_PATTERN.sub('', href)
+        href = SUFFIX_PATTERN.sub('', href)
+        urls.add(href)
+    return urls
 
 
 async def fetch(session, headers, url):
