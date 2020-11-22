@@ -18,14 +18,16 @@ from metacritic.scraper import USER_AGENT
 async def main(dir, sentinel_filename, refresh):
     suffix_url_map = scraper.get_urls_to_download(
         dir, sentinel_filename, refresh=refresh)
-    common.debug("urls to download: " + str(suffix_url_map))
+    common.debug("urls to download: " + str(len(suffix_url_map)))
     result = await scraper.download_urls(
         suffix_url_map.values(), {'User-Agent': USER_AGENT})
     written = 0
     for suffix, url in suffix_url_map.items():
         if url not in result:
+            common.err(f"no download for {suffix}; moving on ...")
             continue # TODO: log error!?
         with open(os.path.join(dir, suffix), 'w') as f:
+            common.debug(f"writing review html for {suffix} to file ...")
             f.write(result[url])
             written += 1
     if written:
