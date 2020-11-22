@@ -1,56 +1,58 @@
 PYTHON=/usr/bin/env python3
 
-METACRITIC_NEW_RELEASES_PAGE='https://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed'
-METACRITIC_TOP_MOVIE_PAGES='https://www.metacritic.com/browse/movies/score/metascore/all/filtered?sort=desc&page=[0-99]'
+NEW_RELEASES_PAGE='https://www.metacritic.com/browse/movies/release-date/theaters/metascore?view=condensed'
+TOP_MOVIES_PAGE='https://www.metacritic.com/browse/movies/score/metascore/all/filtered?sort=desc&page=[0-99]'
 
-HTML_DOWNLOAD_DIR=/tmp/metacritic
-NEW_RELEASES_HTML_FILE=/tmp/new_releases.html
-SCRAPED_NEW_MOVIE_URLS_FILE=/tmp/movie_urls_new
-SCRAPED_TOP_MOVIE_URLS_FILE=/tmp/movie_urls_top
+MOVIE_DIR=movies
+REVIEW_DIR=${MOVIE_DIR}/reviews
+HTML_DIR=${MOVIE_DIR}/html
+
+NEW_RELEASES_HTML_FILE=${HTML_DIR}/new.html
+SCRAPED_MOVIE_URLS_FILE=${MOVIE_DIR}/movie_urls
+
+CURL_USER_AGENT_ARG=User-Agent: Mozilla/5.0
+CURL_PARALLEL_MAX=4
 
 SENTINEL=__CONTENT_UPDATED
-CURL_USER_AGENT_ARG=User-Agent: Mozilla/5.0
 
 # --- 0. download metacritic new release html locally
 
-# download html of page with latest releases
+# download html of pages with movie urls
 ${NEW_RELEASES_HTML_FILE}:
-	curl -o ${NEW_RELEASES_HTML_FILE} ${METACRITIC_NEW_RELEASES_PAGE}
-
-# download html of top rated movies
-${HTML_DOWNLOAD_DIR}:
-	mkdir -p ${HTML_DOWNLOAD_DIR}
+	mkdir -p ${HTML_DIR}
+	curl -o ${NEW_RELEASES_HTML_FILE} ${NEW_RELEASES_PAGE}
 	curl -Z -H "${CURL_USER_AGENT_ARG}" \
-		-o "${HTML_DOWNLOAD_DIR}/top_#1.html" \
-		${METACRITIC_TOP_MOVIE_PAGES}
+		--parallel-max ${CURL_PARALLEL_MAX} \
+		-o "${HTML_DIR}/top_#1.html" \
+		${TOP_MOVIES_PAGE}
 
 
 # --- 1. extract movie urls from html
-${SCRAPED_NEW_MOVIE_URLS_FILE}: ${NEW_RELEASES_HTML_FILE}
-	mc_scrape_movie_urls ${NEW_RELEASES_HTML_FILE} 2> /tmp/scrape.err > ${SCRAPED_NEW_MOVIE_URLS_FILE}
-
-${SCRAPED_TOP_MOVIE_URLS_FILE}: ${HTML_DOWNLOAD_DIR}
-	ls ${HTML_DOWNLOAD_DIR} | while read f; do \
-		mc_scrape_movie_urls ${HTML_DOWNLOAD_DIR}/$$f 2> /tmp/scrape.err >> ${SCRAPED_TOP_MOVIE_URLS_FILE}; \
+${SCRAPED_MOVIE_URLS_FILE}: ${NEW_RELEASES_HTML_FILE}
+	touch ${SCRAPED_MOVIE_URLS_FILE}
+	ls ${HTML_DIR} | while read f; do \
+		mc_scrape_movie_urls ${HTML_DIR}/$$f 2> /tmp/scrape.err >> /tmp/movie_urls ; \
 	done
+	sort ${SCRAPED_MOVIE_URLS_FILE} /tmp/movie_urls | uniq >> ${SCRAPED_MOVIE_URLS_FILE}
+	rm /tmp/movie_urls
 
 
 # --- 2. create new file for each movie url in subdirectory
-movies: ${SCRAPED_NEW_MOVIE_URLS_FILE} ${SCRAPED_TOP_MOVIE_URLS_FILE}
-	mkdir -p movies
-	cat ${SCRAPED_NEW_MOVIE_URLS_FILE} ${SCRAPED_TOP_MOVIE_URLS_FILE} | while read url; do \
-		if [ ! -e movies/$${url} ]; then \
-			touch movies/$${url}; \
+${REVIEW_DIR}: ${SCRAPED_MOVIE_URLS_FILE}
+	mkdir -p ${REVIEW_DIR}
+	cat ${SCRAPED_MOVIE_URLS_FILE} | while read url; do \
+		if [ ! -e ${REVIEW_DIR}/$${url} ]; then \
+			touch ${REVIEW_DIR}/$${url}; \
 		fi; \
 	done
 
 
 # --- 3. download raw HTML content of critic reviews for each movie, in parallel
-movies/${SENTINEL}: movies
-	mc_download_content --sentinel ${SENTINEL} movies 2> /tmp/download.err
+${REVIEW_DIR}/${SENTINEL}: ${REVIEW_DIR}
+	mc_download_content --sentinel ${SENTINEL} ${REVIEW_DIR} 2> /tmp/download.err
 
 # --- 4. extract raw ratings
-data/ratings.pkl: movies/${SENTINEL}
+data/ratings.pkl: ${REVIEW_DIR}/${SENTINEL}
 	mkdir -p data
 	mc_extract_raw_ratings \
 			--current-data data/ratings.pkl \
