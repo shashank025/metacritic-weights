@@ -34,8 +34,7 @@ def scrape_movie_urls(html_content_filename):
     return (
         PREFIX_PATTERN.sub('', a_node.get('href'))
         for a_node in tree.xpath('//a[@href]')
-        if a_node.get('href').startswith('/movie/') \
-        and a_node.get('class') == 'title')
+        if a_node.get('href').startswith('/movie/'))
 
 
 async def fetch(session, headers, url):
@@ -54,8 +53,8 @@ def get_urls_to_download(dir, sentinel_filename, refresh=False):
     if not refresh:
         def is_empty(filename):
             return os.stat(filename).st_size == 0
-        # only fetch content if file is not empty
-        suffixes = (s for s in suffixes if not is_empty(os.path.join(dir, s)))
+        # only fetch content if file is empty
+        suffixes = (s for s in suffixes if is_empty(os.path.join(dir, s)))
     return dict(
         (suffix, f"https://www.metacritic.com/movie/{suffix}/critic-reviews")
         for suffix in suffixes)
