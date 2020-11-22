@@ -16,9 +16,15 @@ from metacritic.common import err
 
 
 TECHNIQUES = frozenset(['SLSQP','COBYLA'])
-DEFAULT_RATING_COUNT_THRESHOLD = 5    # critic must rate at least these many movies to be considered.
-OOB_PENALTY = 100                     # how much to penalize the objective fn when a theta value is out of bounds.
-NIH_PENALTY = 100                     # how much to penalize the objective fn when theta values dont add up to 1.
+
+# critic must rate at least these many movies to be considered.
+DEFAULT_RATING_COUNT_THRESHOLD = 5
+
+# how much to penalize the objective fn when a theta value is out of bounds.
+OOB_PENALTY = 100
+
+# how much to penalize the objective fn when theta values dont add up to 1.
+NIH_PENALTY = 100
 
 
 def bound(val, lo, hi):
@@ -193,7 +199,7 @@ def train(ratings_data, critic_list, tech):
     r_dash, e_matrix, p_vector = construct_opt_params(ratings_data, critic_list)
     result = infer_weights(r_dash, e_matrix, p_vector, tech)
     if not result.success:
-        err("optimization failed [%s]: %s" % (result.status, result.message))
+        err("optimization failed [{}]: {}".format(result.status, result.message))
     return extract_computed_weights(result, critic_list)
 
 def predict(test_data, theta):
@@ -203,7 +209,7 @@ def predict(test_data, theta):
         result[movie] = bound(predicted_metascore, 0, 100)
     return result
 
-def err(actual, predicted):
+def error(actual, predicted):
     return (predicted - actual) * 1.0 /actual
 
 def get_accuracy(url, actual, predicted, error_pct):
@@ -218,7 +224,7 @@ def performance_report(ratings_data, predictions):
     report = []
     for movie, predicted in predictions.items():
         actual, _ = ratings_data[movie]
-        e = err(actual, predicted)
+        e = error(actual, predicted)
         errors.append(e)
         report.append(get_accuracy(movie, actual, predicted, e * 100))
     m = rmse(errors)
