@@ -2,7 +2,7 @@ Reverse Engineering Metacritic
 ==============================
 
 _For complete detail, please see
-[this blog post](http://shashank.ramaprasad.com/2015/06/14/reverse-engineering-the-metacritic-movie-ratings)_.
+[this blog post](https://shashank.ramaprasad.com/2015/06/14/reverse-engineering-the-metacritic-movie-ratings)_.
 
 Install
 -------
