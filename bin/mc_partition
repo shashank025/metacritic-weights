@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """\
 %prog --train-frac <real> --test <filename> --train <filename> < ratings_data.pkl
@@ -11,7 +11,7 @@ import sys
 import argparse
 import pickle
 
-from metacritic.metacritic import partition
+from metacritic.model import partition
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -25,7 +25,7 @@ if __name__ == '__main__':
                         required=True,
                         help="name of file into which training data will be written")
     args = parser.parse_args()
-    ratings_data = pickle.loads(sys.stdin.read())
+    ratings_data = pickle.loads(sys.stdin.buffer.read())
     training_data, test_data = partition(ratings_data, args.train_frac)
     with open(args.train, 'wb') as f:
         f.write(pickle.dumps(training_data))

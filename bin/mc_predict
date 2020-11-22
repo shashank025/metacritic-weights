@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """\
 %prog --theta <theta.pkl> < test_data.pkl > predicted_ratings.pkl
@@ -11,7 +11,7 @@ import sys
 import argparse
 import pickle
 
-from metacritic.metacritic import predict
+from metacritic.model import predict
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -19,6 +19,6 @@ if __name__ == '__main__':
                         help="pickle file containing learned theta values")
     args = parser.parse_args()
 
-    test_data = pickle.loads(sys.stdin.read())
-    theta = pickle.loads(open(args.theta).read())
-    print pickle.dumps(predict(test_data, theta))
+    test_data = pickle.loads(sys.stdin.buffer.read())
+    theta = pickle.loads(open(args.theta, 'rb').read())
+    sys.stdout.buffer.write(pickle.dumps(predict(test_data, theta)))

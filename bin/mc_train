@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """\
 %prog --solver <technique> --significant-critics significant.pkl < training_data.pkl > thetas.pkl
@@ -11,7 +11,7 @@ import sys
 import argparse
 import pickle
 
-from metacritic.metacritic import train
+from metacritic.model import train
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -24,7 +24,7 @@ if __name__ == '__main__':
                         help="pickle file contained previously extracted list of significant critics")
     args = parser.parse_args()
 
-    training_data = pickle.loads(sys.stdin.read())
-    significant_critics = pickle.loads(open(args.significant_critics).read())
+    training_data = pickle.loads(sys.stdin.buffer.read())
+    significant_critics = pickle.loads(open(args.significant_critics, 'rb').read())
     theta = train(training_data, list(significant_critics), args.solver)
-    print pickle.dumps(theta)
+    sys.stdout.buffer.write(pickle.dumps(theta))

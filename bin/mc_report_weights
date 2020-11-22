@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """\
 %prog < theta.pkl
@@ -10,11 +10,11 @@ import sys
 import argparse
 import pickle
 
-from metacritic.metacritic import report
+from metacritic.model import report
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     args = parser.parse_args()
 
-    theta = pickle.loads(sys.stdin.read())
+    theta = pickle.loads(sys.stdin.buffer.read())
     report(theta)
