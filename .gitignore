@@ -4,3 +4,4 @@ dist
 *.pkl
 *.egg-info
 movies
+data
