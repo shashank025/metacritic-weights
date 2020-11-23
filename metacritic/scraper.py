@@ -42,39 +42,44 @@ def scrape_movie_urls(html_content_filename):
     return urls
 
 
-async def fetch(session, headers, url):
-    """Asynchronously fetch the HTML content for specified url.
-
-    Returns:
-        A tuple of the form (requested_url, html_content_of_url).
-    """
-    async with session.get(url, headers=headers) as response:
-        html = await response.text()
-        return (url, html)
-
-
-def get_urls_to_download(dir, sentinel_filename, refresh=False):
+def get_suffixes_to_download(dir, sentinel_filename, refresh=False):
     suffixes = (s for s in os.listdir(dir) if s != sentinel_filename)
     if not refresh:
         def is_empty(filename):
             return os.stat(filename).st_size == 0
         # only fetch content if file is empty
         suffixes = (s for s in suffixes if is_empty(os.path.join(dir, s)))
-    return dict(
-        (suffix, f"https://www.metacritic.com/movie/{suffix}/critic-reviews")
-        for suffix in suffixes)
+    return suffixes
 
 
-async def download_urls(urls, headers):
-    """Asynchronously return a dictionary of urls and their downloaded content.
-
-    TODO: add a semaphore to control concurrency.
-    """
+async def download_and_write_urls(dir, suffixes, concurrency):
+    """Asynchronously download urls and write to disk."""
     async with ClientSession() as session:
-        tasks = [fetch(session, headers, url) for url in urls]
+        tasks = [download_task(s, dir, session) for s in suffixes]
         # list, where each element is of the form (url, content)
-        results = await asyncio.gather(*tasks)
-        return dict(results)
+        return await gather_with_concurrency(concurrency, *tasks)
+
+
+async def download_task(suffix, dir, session):
+    url = f"https://www.metacritic.com/movie/{suffix}/critic-reviews"
+    response = await session.get(url, headers={'User-Agent': USER_AGENT})
+    if response.status != 200:
+        err(f"{response.status} while downloading {url}")
+        return False
+    html = await response.text()
+    dest = os.path.join(dir, suffix)
+    with open(dest, 'w') as f:
+        debug(f"writing downloaded content for {suffix} to {dest} ...")
+        f.write(html)
+        return True
+
+
+async def gather_with_concurrency(n, *tasks):
+    semaphore = asyncio.Semaphore(n)
+    async def sem_task(task):
+        async with semaphore:
+            return await task
+    return await asyncio.gather(*(sem_task(task) for task in tasks))
 
 
 def find(node, xpath_pattern):

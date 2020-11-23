@@ -15,22 +15,12 @@ from metacritic.scraper import DEFAULT_SENTINEL
 from metacritic.scraper import USER_AGENT
 
 
-async def main(dir, sentinel_filename, refresh):
-    suffix_url_map = scraper.get_urls_to_download(
+async def main(dir, sentinel_filename, refresh, concurrency):
+    suffixes = scraper.get_suffixes_to_download(
         dir, sentinel_filename, refresh=refresh)
-    common.debug("urls to download: " + str(len(suffix_url_map)))
-    result = await scraper.download_urls(
-        suffix_url_map.values(), {'User-Agent': USER_AGENT})
-    written = 0
-    for suffix, url in suffix_url_map.items():
-        if url not in result:
-            common.err(f"no download for {suffix}; moving on ...")
-            continue # TODO: log error!?
-        with open(os.path.join(dir, suffix), 'w') as f:
-            common.debug(f"writing review html for {suffix} to file ...")
-            f.write(result[url])
-            written += 1
-    if written:
+    result = await scraper.download_and_write_urls(
+        dir, suffixes, concurrency)
+    if any(result):
         Path(os.path.join(dir, sentinel)).touch()
 
 
@@ -44,6 +34,13 @@ if __name__ == '__main__':
         A file in the suffix_dir that is touched to indicate one or more \
         url contents were downloaded. Default: __CONTENT_UPDATED.
         """)
+    parser.add_argument(
+        "--concurrency",
+        help="""\
+        How many urls to download concurrently?
+        """,
+        default=4,
+        type=int)
     parser.add_argument(
         "--refresh",
         help="""\
@@ -59,4 +56,4 @@ if __name__ == '__main__':
         """)
     args = parser.parse_args()
     sentinel = args.sentinel if args.sentinel else DEFAULT_SENTINEL
-    asyncio.run(main(args.suffix_dir, sentinel, args.refresh))
+    asyncio.run(main(args.suffix_dir, sentinel, args.refresh, args.concurrency))
