@@ -15,6 +15,8 @@ CURL_PARALLEL_MAX=4
 
 SENTINEL=__CONTENT_UPDATED
 
+TRAIN_FRACTION=.3
+
 # --- 0. download metacritic new release html locally
 
 # download html of pages with movie urls
@@ -56,7 +58,7 @@ data/ratings.pkl: ${REVIEW_DIR}/${SENTINEL}
 	mkdir -p data
 	mc_extract_raw_ratings \
 			--current-data data/ratings.pkl \
-			movies > /tmp/ratings.pkl 2> /tmp/ratings.err && \
+			${REVIEW_DIR} > /tmp/ratings.pkl 2> /tmp/ratings.err && \
 		mv /tmp/ratings.pkl data/ratings.pkl
 
 # --- 5. extract critics who've rated at least a few movies
@@ -69,7 +71,7 @@ data/pruned.pkl: data/sig.pkl
 
 # --- 7. partition data into train and test set
 data/train.pkl: data/pruned.pkl
-	mc_partition -f .8 --test data/test.pkl --train data/train.pkl < data/pruned.pkl
+	mc_partition -f ${TRAIN_FRACTION} --test data/test.pkl --train data/train.pkl < data/pruned.pkl
 
 # --- 8. train the models
 data/theta_slsqp.pkl: data/train.pkl
