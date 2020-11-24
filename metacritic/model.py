@@ -13,6 +13,7 @@ import scipy.optimize as sci
 
 from metacritic.common import debug
 from metacritic.common import err
+from metacritic.common import warning
 
 
 TECHNIQUES = frozenset(['SLSQP','COBYLA'])
@@ -82,8 +83,15 @@ def prune(ratings_data, significant_critics):
     def _prune(movie_ratings):
         return {c: r for c, r in movie_ratings.items()
                 if c in significant_critics}
-    return {url : (metascore, _prune(individual_ratings))
-            for url, (metascore, individual_ratings) in ratings_data.items()}
+    output = {}
+    for url, (metascore, individual_ratings) in ratings_data.items():
+        n = len(individual_ratings)
+        pruned = _prune(individual_ratings)
+        p = len(pruned)
+        if p < 4:
+            warning(f"{url}: {p} ratings after pruning ({n} before)")
+        output[url] = (metascore, pruned)
+    return output
 
 def extract_training_keys(urls, frac):
     return set([url for url in urls if random() < frac])
@@ -164,16 +172,14 @@ def construct_opt_params(ratings_data, critics):
     # make an ordered list first
     url_list = list(ratings_data)
     r_dash = []
+    e_matrix = []
     for url in url_list:
         _, individual_ratings = ratings_data[url]
         r_dash.append([individual_ratings.get(c, 0)
                        for c in critics])
-    r_dash = np.matrix(r_dash)
-    e_matrix = []
-    for url in url_list:
-        _, individual_ratings = ratings_data[url]
         e_matrix.append([1 if c in individual_ratings else 0
                          for c in critics])
+    r_dash = np.matrix(r_dash)
     e_matrix = np.matrix(e_matrix)
     p_vector = np.array([ratings_data[url][0]
                          for url in url_list])

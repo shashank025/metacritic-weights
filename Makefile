@@ -69,7 +69,9 @@ data/sig.pkl: data/ratings.pkl
 
 # --- 6. eliminate ratings from insignificant critics
 data/pruned.pkl: data/sig.pkl
-	mc_prune -s data/sig.pkl < data/ratings.pkl > /tmp/pruned.pkl && mv /tmp/pruned.pkl data/pruned.pkl
+	mc_prune -s data/sig.pkl < data/ratings.pkl \
+		2> /tmp/prune.err > /tmp/pruned.pkl && \
+		mv /tmp/pruned.pkl data/pruned.pkl
 
 # --- 7. partition data into train and test set
 data/train.pkl: data/pruned.pkl
