@@ -14,6 +14,8 @@ import pickle
 
 from metacritic.model import DEFAULT_RATING_COUNT_THRESHOLD
 from metacritic.model import get_critics, get_significant_critics
+from metacritic.common import debug
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -23,6 +25,11 @@ if __name__ == '__main__':
                         help="only consider a rating if the critic has rated these many movies")
     args = parser.parse_args()
     ratings_data = pickle.loads(sys.stdin.buffer.read())
-    sys.stdout.buffer.write(
-        pickle.dumps(get_significant_critics(get_critics(ratings_data),
-                                             args.ratings_count_threshold)))
+    critics = get_critics(ratings_data)
+    n = len(critics)
+    debug(f"total critic count: {n}")
+    significant_critics = get_significant_critics(
+        critics, args.ratings_count_threshold)
+    s = len(significant_critics)
+    debug(f"significant critic count: {s}")
+    sys.stdout.buffer.write(pickle.dumps(significant_critics))

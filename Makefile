@@ -63,7 +63,9 @@ data/ratings.pkl: ${REVIEW_DIR}/${SENTINEL}
 
 # --- 5. extract critics who've rated at least a few movies
 data/sig.pkl: data/ratings.pkl
-	mc_extract_significant_critics < data/ratings.pkl > /tmp/sig.pkl && mv /tmp/sig.pkl data/sig.pkl
+	mc_extract_significant_critics < data/ratings.pkl \
+		2> /tmp/sig.err > /tmp/sig.pkl && \
+		mv /tmp/sig.pkl data/sig.pkl
 
 # --- 6. eliminate ratings from insignificant critics
 data/pruned.pkl: data/sig.pkl
